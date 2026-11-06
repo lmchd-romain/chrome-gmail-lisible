@@ -5,19 +5,35 @@
 <title>Faux Gmail — boîte de réception</title>
 <style>
   body { margin: 0; font: 14px Arial, sans-serif; background: #f6f8fc; color: #202124; }
-  .Tm.aeJ { position: fixed; top: 64px; left: 256px; right: 56px; bottom: 0; overflow-y: auto; background: #fff; }
+  .G-atb { position: fixed; top: 0; left: 256px; right: 56px; height: 48px; background: #fff; display: flex; gap: 12px; align-items: center; justify-content: flex-end; padding: 0 16px; }
+  .G-atb [role=button] { padding: 4px 10px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; }
+  .G-atb [aria-disabled=true] { opacity: .4; }
+  .Tm.aeJ { position: fixed; top: 48px; left: 256px; right: 56px; bottom: 0; overflow-y: auto; background: #fff; }
+  .Wg { padding: 12px 16px 4px; }
+  .Wn { font-weight: bold; }
   table.F { width: 100%; table-layout: fixed; border-collapse: collapse; }
   tr.zA { height: 40px; box-shadow: inset 0 -1px 0 0 rgba(100,121,143,.12); cursor: pointer; }
-  tr.zA:hover { box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60,64,67,.3); }
   tr.zE { font-weight: bold; }
   td { padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   td.xW { text-align: right; }
 </style>
 </head>
 <body>
-<div class="Tm aeJ">
+<div class="G-atb" gh="tm" id="toolbar">
+  <span id="counter">1–10 sur 20</span>
+  <div role="button" id="newer" aria-label="Plus récents" data-tooltip="Plus récents" aria-disabled="true">‹</div>
+  <div role="button" id="older" aria-label="Plus anciens" data-tooltip="Plus anciens">›</div>
+</div>
+<div class="Tm aeJ" id="scroller">
   <div role="main">
-    <div class="ae4 UI" id="section1"></div>
+    <div class="ae4" id="starred-section">
+      <div class="Wg"><h3 class="Wr iR"><div class="Wn">Messages suivis</div></h3></div>
+      <div id="section0"></div>
+    </div>
+    <div class="ae4" id="rest-section">
+      <div class="Wg"><h3 class="Wr iR"><div class="Wn">Tout le reste</div></h3></div>
+      <div id="section1"></div>
+    </div>
     <div class="ae4 UI" id="section2"></div>
   </div>
 </div>
@@ -43,15 +59,15 @@
 
   function makeRow(daysAgo, hour, subject, opts = {}) {
     const d = dateAt(daysAgo, hour);
-    const id = ':r' + (seq++);
     const tr = document.createElement('tr');
     tr.className = 'zA ' + (opts.unread ? 'zE' : 'yO');
-    tr.id = id;
+    tr.id = ':r' + (seq++);
     tr.dataset.daysAgo = daysAgo;
     const title = opts.title || fmt.format(d);
+    const star = opts.starred ? '<span class="T-KT" title="Suivi" aria-label="Suivi"></span>' : '<span class="aXw T-KT" title="Non suivi" aria-label="Non suivi"></span>';
     tr.innerHTML = `<td class="PF xY PE"></td>
       <td class="oZ-x3 xY aid"><div class="oZ-jc T-Jo J-J5-Ji" role="checkbox" aria-checked="false"></div></td>
-      <td class="apU xY"><span class="aXw T-KT" title="Non suivi"></span></td>
+      <td class="apU xY">${star}</td>
       <td class="WA xY"></td>
       <td class="yX xY"><div class="yW"><span class="zF" email="x@example.com" name="Expéditeur">Expéditeur</span></div></td>
       <td class="xY a4W"><div class="xS" role="link"><div class="xT"><div class="y6"><span>${subject}</span></div></div></div></td>
@@ -72,24 +88,56 @@
     return tbody;
   }
 
-  const main = makeTable(document.getElementById('section1'), [
-    makeRow(5, 9, 'E-mail remis en avant (en attente)'),
-    makeRow(0, 11, 'Devis atelier', { unread: true }),
-    makeRow(0, 8, 'Réunion de chantier'),
-    makeRow(1, 17, 'Commande bois'),
-    makeRow(2, 10, 'Plans BEAR Rennes'),
-    makeRow(3, 15, 'Facture'),
-    makeRow(8, 9, 'Livraison'),
-    makeRow(20, 9, 'Newsletter'),
-    makeRow(40, 9, 'Ancien devis'),
-    makeRow(400, 9, 'Très ancien', { title: 'Thu, Oct 2, 2025 at 9:05 AM' }),
+  makeTable(document.getElementById('section0'), [
+    makeRow(0, 9, 'Suivi aujourd\'hui', { starred: true }),
+    makeRow(3, 9, 'Suivi il y a 3 jours', { starred: true }),
+    makeRow(30, 9, 'Suivi ancien', { starred: true }),
   ]);
+
+  function page1() {
+    return [
+      makeRow(5, 9, 'E-mail remis en avant (en attente)'),
+      makeRow(0, 11, 'Devis atelier', { unread: true }),
+      makeRow(0, 8, 'Réunion de chantier'),
+      makeRow(1, 17, 'Commande bois'),
+      makeRow(2, 10, 'Plans BEAR Rennes'),
+      makeRow(3, 15, 'Facture'),
+      makeRow(8, 9, 'Livraison'),
+      makeRow(20, 9, 'Newsletter'),
+      makeRow(40, 9, 'Ancien devis'),
+      makeRow(400, 9, 'Très ancien', { title: 'Thu, Oct 2, 2025 at 9:05 AM' }),
+    ];
+  }
+
+  function page2() {
+    return [410, 420, 430, 440, 450, 460, 470, 480, 490, 500].map((n) => makeRow(n, 9, 'Page 2 — ' + n + ' jours'));
+  }
+
+  const main = makeTable(document.getElementById('section1'), page1());
   makeTable(document.getElementById('section2'), [
     makeRow(0, 7, 'Section 2 — aujourd\'hui'),
     makeRow(1, 7, 'Section 2 — hier'),
   ]);
 
+  // Pagination de Gmail : la liste est remplacée par la page suivante / précédente.
+  function showPage(n) {
+    main.replaceChildren(...(n === 2 ? page2() : page1()));
+    document.getElementById('older').setAttribute('aria-disabled', String(n === 2));
+    document.getElementById('newer').setAttribute('aria-disabled', String(n === 1));
+    document.getElementById('counter').textContent = n === 2 ? '11–20 sur 20' : '1–10 sur 20';
+    location.hash = n === 2 ? '#inbox/p2' : '#inbox';
+    document.getElementById('scroller').scrollTop = 0;
+    window.__fake.page = n;
+  }
+  document.getElementById('older').addEventListener('click', (e) => {
+    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') setTimeout(() => showPage(2), 150);
+  });
+  document.getElementById('newer').addEventListener('click', (e) => {
+    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') setTimeout(() => showPage(1), 150);
+  });
+
   window.__fake = {
+    page: 1,
     addNewMail() {
       main.insertBefore(makeRow(0, 23, 'Nouveau message', { unread: true }), main.firstChild);
     },

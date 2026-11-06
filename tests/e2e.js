@@ -58,6 +58,13 @@ async function main() {
 
   const id = extensionId();
   const popupUrl = `chrome-extension://${id}/popup/popup.html`;
+  const popup = await context.newPage();
+  await popup.goto(popupUrl);
+
+  async function setOption(key, value) {
+    await popup.evaluate(([k, v]) => chrome.storage.sync.set({ [k]: v }), [key, value]);
+    await new Promise((r) => setTimeout(r, 250));
+  }
 
   async function openGmail(url) {
     const page = await context.newPage();
@@ -70,144 +77,207 @@ async function main() {
     return page;
   }
 
-  // ---------------- Conversation ----------------
-  console.log('\nConversation (avec bouton « Tout développer ») :');
-  const thread = await openGmail('https://mail.google.com/mail/u/0/thread#inbox/FMfcgzTEST1');
+  const scrollTo = (page, where) =>
+    page.evaluate((w) => {
+      const s = document.getElementById('scroller');
+      s.scrollTop = w === 'top' ? 0 : s.scrollHeight;
+    }, where);
 
-  await step('tous les messages sont dépliés', async () => {
-    await thread.waitForFunction(() => !document.querySelector('#list .kv, #list .kQ'), null, { timeout: 6000 });
-    const clicks = await thread.evaluate(() => window.__fake.expandAllClicks);
-    assert.equal(clicks, 1, 'un seul clic sur « Tout développer »');
+  // ---------------- Conversation ----------------
+  console.log('\nConversation :');
+  const thread = await openGmail('https://mail.google.com/mail/u/0/thread?delayRender=1#inbox/FMfcgzTEST1');
+
+  await step('tous les messages dépliés, sans « flash » des messages repliés', async () => {
+    await thread.waitForFunction(() => document.getElementById('list') && !document.querySelector('#list .kv, #list .kQ'), null, { timeout: 6000 });
+    const f = await thread.evaluate(() => window.__fake);
+    assert.equal(f.expandAllClicks, 1, 'un seul clic sur « Tout développer »');
+    assert.equal(f.flashSeen, false, 'aucune image affichée avec des messages repliés');
   });
 
   await step('bouton « Afficher le contenu abrégé » masqué', async () => {
     const display = await thread.evaluate(() => [
       getComputedStyle(document.querySelector('.ajU')).display,
-      getComputedStyle(document.querySelector('.ajR')).display,
+      getComputedStyle(document.querySelector('[data-index="6"] .ajR')).display,
     ]);
     assert.deepEqual(display, ['none', 'none']);
   });
 
-  await step('noms de pièces jointes masqués, le reste visible', async () => {
+  await step('noms de fichiers masqués (sous le bouton et cas de la capture)', async () => {
     await thread.waitForFunction(() => !document.querySelector('#leftover').innerText.includes('BEAR_Rennes'), null, { timeout: 3000 });
     const text = await thread.evaluate(() => document.querySelector('#leftover').innerText);
-    assert.ok(!text.includes('BEAR_Rennes'), 'BEAR_Rennes encore visible : ' + text);
     assert.ok(!text.includes('PastedGraphic'), 'PastedGraphic encore visible');
     for (const keep of ['Fichiers', 'Fin du message', 'jean.dupont@example.com', 'www.example.com']) {
       assert.ok(text.includes(keep), `« ${keep} » doit rester visible`);
     }
     const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-    assert.deepEqual(lines.slice(0, 2), ['Fichiers :', 'Fin du message'], 'pas de ligne vide laissée : ' + JSON.stringify(lines));
+    assert.deepEqual(lines.slice(0, 2), ['Fichiers :', 'Fin du message'], 'pas de ligne vide : ' + JSON.stringify(lines));
+    const last = await thread.evaluate(() => document.querySelector('[data-index="7"] .ii.gt').innerText);
+    assert.ok(!last.includes('BEAR_Rennes'), 'cas de la capture encore visible : ' + last);
+    assert.ok(last.includes('Merci !') && last.includes('Amandine'), 'le reste du message reste visible');
     const other = await thread.evaluate(() => document.querySelector('[data-index="2"] .ii.gt').innerText);
-    assert.ok(other.includes('garde-moi.pdf'), 'sans contenu abrégé, rien ne doit être masqué');
+    assert.ok(other.includes('garde-moi.pdf'), 'un nom de fichier dans une phrase normale reste visible');
   });
 
-  await step('réglage « noms de pièces jointes » désactivable à chaud', async () => {
-    await thread.evaluate(() => {}); // page prête
-    const popup = await context.newPage();
-    await popup.goto(popupUrl);
-    await popup.click('input[data-key="hideAttachmentPlaceholders"]');
-    await thread.waitForFunction(() => document.querySelector('#leftover').innerText.includes('BEAR_Rennes'), null, { timeout: 3000 });
-    await popup.click('input[data-key="hideAttachmentPlaceholders"]');
-    await thread.waitForFunction(() => !document.querySelector('#leftover').innerText.includes('BEAR_Rennes'), null, { timeout: 3000 });
-    await popup.close();
+  await step('réglage « noms de fichiers » désactivable à chaud', async () => {
+    await setOption('hideAttachmentPlaceholders', false);
+    const body7 = () => document.querySelector('[data-index="7"] .ii.gt').innerText;
+    await thread.waitForFunction((f) => eval(f)().includes('BEAR_Rennes'), body7.toString(), { timeout: 3000 });
+    await setOption('hideAttachmentPlaceholders', true);
+    await thread.waitForFunction((f) => !eval(f)().includes('BEAR_Rennes'), body7.toString(), { timeout: 3000 });
   });
 
-  await step('réponse : reste en place tant qu’elle est visible', async () => {
-    await thread.click('#reply-btn');
-    await thread.waitForSelector('#compose');
-    await thread.waitForTimeout(400);
-    const floating = await thread.evaluate(() => document.querySelector('#compose').classList.contains('glx-floating'));
-    assert.equal(floating, false);
-    const dots = await thread.evaluate(() => getComputedStyle(document.querySelector('#compose-dots')).display);
-    assert.notEqual(dots, 'none', 'les « ••• » de la zone de rédaction restent visibles');
-  });
-
-  await step('réponse : devient flottante quand on remonte', async () => {
-    await thread.evaluate(() => (document.getElementById('scroller').scrollTop = 0));
-    await thread.waitForFunction(() => document.querySelector('#compose').classList.contains('glx-floating'), null, { timeout: 3000 });
-    await thread.waitForTimeout(250);
+  await step('pièces jointes compactes au-dessus du message', async () => {
     const info = await thread.evaluate(() => {
-      const c = document.querySelector('#compose');
-      const r = c.getBoundingClientRect();
-      const s = document.getElementById('scroller').getBoundingClientRect();
-      const h = document.querySelector('.glx-float-header');
-      const hr = h && h.getBoundingClientRect();
+      const msg = document.querySelector('[data-index="0"]');
+      const bar = msg.querySelector('.glx-att-bar');
       return {
-        position: getComputedStyle(c).position,
-        bottomGap: Math.round(innerHeight - r.bottom),
-        insideRight: r.right <= s.right && r.right > s.right - 60,
-        visible: r.top >= 0 && r.bottom <= innerHeight,
-        width: Math.round(r.width),
-        headerAbove: hr ? Math.round(r.top - hr.bottom) : null,
-        headerText: h ? h.textContent : null,
-        hostMinHeight: document.querySelector('.ip.adB').style.minHeight,
+        bar: !!bar,
+        beforeBody: bar && bar.nextElementSibling === msg.querySelector('div.ii.gt'),
+        compact: bar && bar.classList.contains('glx-att-compact'),
+        items: bar ? bar.querySelectorAll('.glx-att-item').length : 0,
+        head: bar ? bar.querySelector('.glx-att-head').textContent : '',
+        nativeHidden: getComputedStyle(msg.querySelector('.hq')).display === 'none',
+        thumbs: bar ? bar.querySelectorAll('img.glx-att-thumb, .glx-att-thumb').length : -1,
       };
     });
-    assert.equal(info.position, 'fixed');
-    assert.equal(info.bottomGap, 0);
-    assert.ok(info.insideRight, 'collée à droite de la conversation');
-    assert.ok(info.visible, 'entièrement visible');
-    assert.ok(info.width >= 320 && info.width <= 680, 'largeur ' + info.width);
-    assert.equal(info.headerAbove, 0, 'barre de titre juste au-dessus');
-    assert.ok(/Plans BEAR Rennes/.test(info.headerText), 'titre avec le sujet');
-    assert.ok(parseInt(info.hostMinHeight, 10) > 50, 'la place est gardée dans la conversation');
-    await shot(thread, 'reponse-flottante');
-  });
-
-  await step('réponse flottante : on peut écrire dedans', async () => {
-    await thread.click('#editor');
-    await thread.keyboard.type('Bonjour, bien reçu.');
-    const txt = await thread.evaluate(() => document.getElementById('editor').textContent);
-    assert.equal(txt, 'Bonjour, bien reçu.');
-  });
-
-  await step('réponse flottante : réduire puis agrandir', async () => {
-    await thread.click('.glx-float-header button[aria-label="Réduire"]');
-    let display = await thread.evaluate(() => getComputedStyle(document.querySelector('#compose')).display);
-    assert.equal(display, 'none');
-    const headerBottom = await thread.evaluate(() => Math.round(innerHeight - document.querySelector('.glx-float-header').getBoundingClientRect().bottom));
-    assert.equal(headerBottom, 0, 'barre réduite collée en bas');
-    await thread.click('.glx-float-header button[aria-label="Agrandir"]');
-    display = await thread.evaluate(() => getComputedStyle(document.querySelector('#compose')).display);
-    assert.notEqual(display, 'none');
-  });
-
-  await step('réponse : reprend sa place en bas de la conversation', async () => {
-    await thread.evaluate(() => {
-      const s = document.getElementById('scroller');
-      s.scrollTop = s.scrollHeight;
+    assert.deepEqual(info, {
+      bar: true,
+      beforeBody: true,
+      compact: true,
+      items: 2,
+      head: '2 pièces jointesTout télécharger',
+      nativeHidden: true,
+      thumbs: 0,
     });
-    await thread.waitForFunction(() => !document.querySelector('#compose').classList.contains('glx-floating'), null, { timeout: 3000 });
-    const state = await thread.evaluate(() => ({
-      header: !!document.querySelector('.glx-float-header'),
-      minHeight: document.querySelector('.ip.adB').style.minHeight,
-      position: getComputedStyle(document.querySelector('#compose')).position,
-      text: document.getElementById('editor').textContent,
-    }));
-    assert.deepEqual(state, { header: false, minHeight: '', position: 'static', text: 'Bonjour, bien reçu.' });
   });
 
-  await step('réponse : bouton « revenir » la remet en place', async () => {
-    await thread.evaluate(() => (document.getElementById('scroller').scrollTop = 0));
-    await thread.waitForSelector('.glx-float-header');
-    await thread.click('.glx-float-header button[aria-label^="Revenir"]');
-    await thread.waitForFunction(() => !document.querySelector('#compose').classList.contains('glx-floating'), null, { timeout: 4000 });
+  await step('pièces jointes : aperçu, téléchargement, Drive, tout télécharger', async () => {
+    const bar = '[data-index="0"] .glx-att-bar';
+    await thread.click(`${bar} .glx-att-item:nth-child(1) .glx-att-name`);
+    await thread.click(`${bar} .glx-att-item:nth-child(1) [aria-label="Télécharger"]`);
+    await thread.click(`${bar} .glx-att-item:nth-child(2) [aria-label="Ajouter à Drive"]`);
+    await thread.click(`${bar} .glx-att-all`);
+    await thread.waitForTimeout(300);
+    const f = await thread.evaluate(() => window.__fake);
+    assert.deepEqual(f.previews, ['BEAR_Rennes_6mm.pdf']);
+    assert.deepEqual(f.downloads, ['BEAR_Rennes_6mm.pdf']);
+    assert.deepEqual(f.drive, ['BEAR_Rennes_6mm.dxf']);
+    assert.equal(f.downloadAll, 1);
+    const collapsed = await thread.evaluate(() => document.querySelector('[data-index="0"]').className);
+    assert.equal(collapsed, 'h7', 'le message reste ouvert');
   });
 
-  await step('réponse fermée : tout est nettoyé', async () => {
-    await thread.evaluate(() => (document.getElementById('scroller').scrollTop = 0));
-    await thread.waitForSelector('.glx-float-header');
+  await step('toutes les pièces jointes regroupées en haut', async () => {
+    const info = await thread.evaluate(() => {
+      const p = document.querySelector('.glx-att-summary');
+      return p && {
+        beforeList: p.nextElementSibling === document.getElementById('list'),
+        title: p.querySelector('.glx-att-summary-title').textContent,
+        rows: [...p.querySelectorAll('.glx-att-item')].map((r) => r.querySelector('.glx-att-label').textContent + ' | ' + (r.querySelector('.glx-att-meta') || {}).textContent),
+      };
+    });
+    assert.ok(info, 'récapitulatif absent');
+    assert.equal(info.beforeList, true);
+    assert.equal(info.title, '5 pièces jointes dans cette conversation');
+    assert.equal(info.rows.length, 5);
+    assert.ok(info.rows[0].startsWith('BEAR_Rennes_6mm.pdf') && info.rows[0].includes('×2'), 'doublon compté et en premier : ' + info.rows.join(' / '));
+    assert.ok(info.rows.every((r) => / · 04\/11/.test(r)), 'expéditeur et date : ' + info.rows.join(' / '));
+    await thread.click('.glx-att-summary .glx-att-item:nth-child(1) [aria-label="Voir le message"]');
+    await thread.waitForFunction(() => !!document.querySelector('.glx-flash'), null, { timeout: 2000 });
+    await thread.click('.glx-att-summary-head');
+    await thread.waitForFunction(() => document.querySelector('.glx-att-summary').classList.contains('is-closed'), null, { timeout: 2000 });
+    await thread.click('.glx-att-summary-head');
+    await shot(thread, 'pieces-jointes');
+  });
+
+  await step('pièces jointes : réglages (aperçu, position, récapitulatif)', async () => {
+    await setOption('attachmentsCompact', false);
+    await thread.waitForFunction(() => document.querySelector('[data-index="0"] .glx-att-bar.glx-att-cards .glx-att-thumb img'), null, { timeout: 3000 });
+    await setOption('attachmentsOnTop', false);
+    await thread.waitForFunction(() => !document.querySelector('[data-index="0"] .glx-att-bar') && getComputedStyle(document.querySelector('[data-index="0"] .hq')).display !== 'none', null, { timeout: 3000 });
+    await setOption('attachmentsCompact', true);
+    await thread.waitForFunction(() => {
+      const bar = document.querySelector('[data-index="0"] .glx-att-bar');
+      return bar && bar.nextElementSibling === document.querySelector('[data-index="0"] .hq');
+    }, null, { timeout: 3000 });
+    await setOption('attachmentsOnTop', true);
+    await setOption('attachmentsSummary', false);
+    await thread.waitForFunction(() => !document.querySelector('.glx-att-summary'), null, { timeout: 3000 });
+    await setOption('attachmentsSummary', true);
+    await thread.waitForSelector('.glx-att-summary');
+  });
+
+  await step('réponse : « ••• » masqué aussi pendant la rédaction', async () => {
+    await thread.click('#reply-btn');
+    await thread.waitForSelector('#compose');
+    const dots = await thread.evaluate(() => getComputedStyle(document.querySelector('#compose-dots')).display);
+    assert.equal(dots, 'none');
+  });
+
+  await step('réponse : passe dans la fenêtre pop-up de Gmail quand on remonte', async () => {
+    await thread.waitForTimeout(300);
+    assert.equal(await thread.evaluate(() => !!document.getElementById('popup')), false, 'pas de pop-up tant que la réponse est visible');
+    await scrollTo(thread, 'top');
+    await thread.waitForSelector('#popup', { timeout: 3000 });
+    const state = await thread.evaluate(() => ({ inline: !!document.querySelector('.ip.adB'), popouts: window.__fake.popouts }));
+    assert.deepEqual(state, { inline: false, popouts: 1 });
+    await shot(thread, 'reponse-popup');
+  });
+
+  await step('pop-up : on écrit, puis elle reprend sa place tout en bas (brouillon rouvert)', async () => {
+    await thread.click('#popup #editor');
+    await thread.keyboard.type('Bonjour, bien reçu.');
+    await thread.waitForTimeout(1300);
+    await scrollTo(thread, 'bottom');
+    await thread.waitForFunction(() => !document.getElementById('popup') && window.__fake.draftReopened && document.querySelector('.ip.adB #editor'), null, { timeout: 6000 });
+    const text = await thread.evaluate(() => document.querySelector('.ip.adB #editor').textContent);
+    assert.equal(text, 'Bonjour, bien reçu.');
+  });
+
+  await step('pop-up vide : une réponse vide se rouvre en bas', async () => {
     await thread.evaluate(() => window.__closeReply());
-    await thread.waitForFunction(() => !document.querySelector('.glx-float-header'), null, { timeout: 3000 });
-    const minH = await thread.evaluate(() => document.querySelector('[data-index="7"] .ip').style.minHeight);
-    assert.equal(minH, '');
+    await thread.click('#reply-btn');
+    await thread.waitForSelector('.ip.adB #compose');
+    await thread.waitForTimeout(1700);
+    await scrollTo(thread, 'top');
+    await thread.waitForSelector('#popup', { timeout: 3000 });
+    await thread.waitForTimeout(1300);
+    await scrollTo(thread, 'bottom');
+    await thread.waitForFunction(() => !document.getElementById('popup') && document.querySelector('.ip.adB #compose'), null, { timeout: 5000 });
+    const text = await thread.evaluate(() => document.querySelector('.ip.adB #editor').textContent);
+    assert.equal(text, '');
   });
+
+  await step('« la remettre en place » désactivé : la pop-up reste', async () => {
+    await setOption('dockReplyAtBottom', false);
+    await thread.waitForTimeout(1700);
+    await scrollTo(thread, 'top');
+    await thread.waitForSelector('#popup', { timeout: 3000 });
+    await thread.waitForTimeout(1300);
+    await scrollTo(thread, 'bottom');
+    await thread.waitForTimeout(1500);
+    assert.equal(await thread.evaluate(() => !!document.getElementById('popup')), true);
+    await setOption('dockReplyAtBottom', true);
+  });
+  await thread.close();
+
+  console.log('\nConversation (dépliage lent) :');
+  const slow = await openGmail('https://mail.google.com/mail/u/0/thread?delayRender=1&asyncExpand=1#inbox/FMfcgzTEST4');
+  await step('conversation masquée le temps du dépliage, puis affichée', async () => {
+    await slow.waitForSelector('#list');
+    await slow.waitForTimeout(120);
+    const during = await slow.evaluate(() => ({ cls: document.getElementById('list').classList.contains('glx-expanding'), op: getComputedStyle(document.getElementById('list')).opacity }));
+    assert.deepEqual(during, { cls: true, op: '0' });
+    await slow.waitForFunction(() => !document.querySelector('#list .kv, #list .kQ'), null, { timeout: 4000 });
+    await slow.waitForFunction(() => getComputedStyle(document.getElementById('list')).opacity === '1', null, { timeout: 2000 });
+    assert.equal(await slow.evaluate(() => window.__fake.flashSeen), false);
+  });
+  await slow.close();
 
   console.log('\nConversation (sans bouton « Tout développer ») :');
-  const thread2 = await openGmail('https://mail.google.com/mail/u/0/thread?noExpandAll=1#inbox/FMfcgzTEST2');
+  const thread2 = await openGmail('https://mail.google.com/mail/u/0/thread?noExpandAll=1&delayRender=1#inbox/FMfcgzTEST2');
   await step('dépliage de secours (bloc caché + messages repliés)', async () => {
-    await thread2.waitForFunction(() => !document.querySelector('#list .kv, #list .kQ'), null, { timeout: 8000 });
+    await thread2.waitForFunction(() => document.getElementById('list') && !document.querySelector('#list .kv, #list .kQ'), null, { timeout: 8000 });
     const f = await thread2.evaluate(() => window.__fake);
     assert.ok(f.noticeClicks >= 1, 'clic sur « messages plus anciens »');
     assert.ok(f.headerClicks >= 3, 'clic sur chaque message replié');
@@ -229,10 +299,9 @@ async function main() {
   console.log('\nBoîte de réception :');
   const inbox = await openGmail('https://mail.google.com/mail/u/0/inbox#inbox');
 
-  function expectedLabels(mode) {
+  function expectedLabels(mode, days) {
     const now = new Date();
     const ago = (n) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - n, 9);
-    const days = [0, 0, 1, 2, 3, 8, 20, 40, 400];
     const labels = [];
     let last = null;
     for (const n of days) {
@@ -242,6 +311,7 @@ async function main() {
     }
     return labels;
   }
+  const PAGE1 = [0, 0, 1, 2, 3, 8, 20, 40, 400];
 
   async function labels(page, section) {
     return page.evaluate((s) => [...document.querySelectorAll(`#${s} .glx-day-sep`)].map((e) => e.textContent), section);
@@ -250,21 +320,31 @@ async function main() {
   await step('séparateurs « chaque jour » au bon endroit', async () => {
     await inbox.waitForSelector('#section1 .glx-day-sep');
     await inbox.waitForTimeout(200);
-    assert.deepEqual(await labels(inbox, 'section1'), expectedLabels('day'));
+    assert.deepEqual(await labels(inbox, 'section1'), expectedLabels('day', PAGE1));
     assert.deepEqual(await labels(inbox, 'section2'), ["Aujourd'hui", 'Hier']);
     const firstIsSep = await inbox.evaluate(() => document.querySelector('#section1 tbody').firstElementChild.classList.contains('glx-day-sep'));
     assert.ok(firstIsSep, 'le premier séparateur est en haut (e-mail remis en avant inclus)');
     await shot(inbox, 'separateurs-jour');
   });
 
-  await step('les lignes de Gmail ne sont pas touchées', async () => {
+  await step('pas de séparateurs dans « Messages suivis »', async () => {
+    assert.deepEqual(await labels(inbox, 'section0'), []);
+  });
+
+  await step('séparateurs compacts, lignes de Gmail intactes', async () => {
     const info = await inbox.evaluate(() => {
       const tb = document.querySelector('#section1 tbody');
-      const sep = tb.querySelector('.glx-day-sep td');
-      return { rows: tb.rows.length, sepWidth: Math.round(sep.getBoundingClientRect().width), tableWidth: Math.round(tb.closest('table').getBoundingClientRect().width) };
+      const sep = [...tb.querySelectorAll('.glx-day-sep td')][1];
+      return {
+        rows: tb.rows.length,
+        sepWidth: Math.round(sep.getBoundingClientRect().width),
+        tableWidth: Math.round(tb.closest('table').getBoundingClientRect().width),
+        sepHeight: Math.round(sep.getBoundingClientRect().height),
+      };
     });
     assert.equal(info.rows, 10, 'tbody.rows ne compte pas les séparateurs');
     assert.equal(info.sepWidth, info.tableWidth, 'séparateur sur toute la largeur');
+    assert.ok(info.sepHeight >= 22 && info.sepHeight <= 28, 'hauteur ' + info.sepHeight);
   });
 
   await step('nouvel e-mail et e-mail supprimé : mise à jour', async () => {
@@ -275,17 +355,14 @@ async function main() {
       return [tb.children[0].className.includes('glx-day-sep'), tb.children[1].textContent.includes('Nouveau message')];
     });
     assert.deepEqual(top, [true, true]);
-    assert.deepEqual(await labels(inbox, 'section1'), expectedLabels('day'));
+    assert.deepEqual(await labels(inbox, 'section1'), expectedLabels('day', PAGE1));
     await inbox.evaluate(() => window.__fake.removeRow(1));
     await inbox.waitForTimeout(400);
-    const now = await labels(inbox, 'section1');
-    assert.ok(!now.includes('Hier'), 'plus de « Hier » sans e-mail d’hier');
+    assert.ok(!(await labels(inbox, 'section1')).includes('Hier'), 'plus de « Hier » sans e-mail d’hier');
   });
 
-  const popup = await context.newPage();
-  await popup.goto(popupUrl);
-
   await step('popup : réglages par défaut affichés', async () => {
+    await popup.reload();
     const state = await popup.evaluate(() => ({
       switches: [...document.querySelectorAll('input[data-key]')].map((i) => [i.dataset.key, i.checked]),
       mode: document.querySelector('input[name="daySeparatorMode"]:checked').value,
@@ -295,36 +372,74 @@ async function main() {
       hideTrimmedButton: true,
       hideAttachmentPlaceholders: true,
       floatingReply: true,
+      dockReplyAtBottom: true,
+      attachmentsOnTop: true,
+      attachmentsCompact: true,
+      attachmentsSummary: true,
+      infiniteScroll: true,
       daySeparators: true,
     });
     assert.equal(state.mode, 'day');
-    await popup.setViewportSize({ width: 360, height: 640 });
+    await popup.setViewportSize({ width: 360, height: 980 });
     await shot(popup, 'popup');
   });
 
   await step('mode « Regrouper » appliqué tout de suite', async () => {
-    await inbox.evaluate(() => window.__fake.addNewMail()); // remet une ligne « aujourd'hui » en haut
     await popup.click('input[value="group"] + .mode-body');
-    const want = expectedLabels('group').filter((l) => l !== 'Hier');
+    const want = expectedLabels('group', [0, 0, 2, 3, 8, 20, 40, 400]);
     await inbox.waitForFunction((w) => JSON.stringify([...document.querySelectorAll('#section1 .glx-day-sep')].map((e) => e.textContent)) === JSON.stringify(w), want, { timeout: 3000 });
     await shot(inbox, 'separateurs-regroupes');
+    await popup.click('input[value="day"] + .mode-body');
   });
 
   await step('séparateurs désactivés : tous retirés', async () => {
     await popup.click('input[data-key="daySeparators"]');
     await inbox.waitForFunction(() => !document.querySelector('.glx-day-sep'), null, { timeout: 3000 });
-    const disabled = await popup.evaluate(() => document.querySelector('input[value="day"]').disabled);
-    assert.equal(disabled, true, 'choix du mode grisé');
+    assert.equal(await popup.evaluate(() => document.querySelector('input[value="day"]').disabled), true, 'choix du mode grisé');
     await popup.click('input[data-key="daySeparators"]');
     await inbox.waitForSelector('.glx-day-sep');
   });
 
-  await step('bouton « contenu abrégé » réaffiché si désactivé', async () => {
-    const t = await openGmail('https://mail.google.com/mail/u/0/thread#inbox/FMfcgzTEST3');
-    await popup.click('input[data-key="hideTrimmedButton"]');
-    await t.waitForFunction(() => getComputedStyle(document.querySelector('.ajU')).display !== 'none', null, { timeout: 3000 });
-    await popup.click('input[data-key="hideTrimmedButton"]');
-    await t.close();
+  await step('défilement continu : page suivante puis précédente', async () => {
+    await inbox.bringToFront();
+    await inbox.mouse.move(800, 500);
+    await scrollTo(inbox, 'bottom');
+    await inbox.waitForTimeout(100);
+    for (let i = 0; i < 10 && (await inbox.evaluate(() => window.__fake.page)) === 1; i++) {
+      await inbox.mouse.wheel(0, 120);
+      await inbox.waitForTimeout(90);
+    }
+    await inbox.waitForFunction(() => window.__fake.page === 2, null, { timeout: 3000 });
+    await inbox.waitForTimeout(300);
+    assert.equal(await inbox.evaluate(() => document.getElementById('scroller').scrollTop), 0, 'page suivante affichée depuis le haut');
+    await inbox.waitForTimeout(1600);
+    for (let i = 0; i < 10 && (await inbox.evaluate(() => window.__fake.page)) === 2; i++) {
+      await inbox.mouse.wheel(0, -120);
+      await inbox.waitForTimeout(90);
+    }
+    await inbox.waitForFunction(() => window.__fake.page === 1, null, { timeout: 3000 });
+    await inbox.waitForTimeout(300);
+    const atBottom = await inbox.evaluate(() => {
+      const s = document.getElementById('scroller');
+      return s.scrollHeight - s.scrollTop - s.clientHeight <= 4;
+    });
+    assert.equal(atBottom, true, 'en remontant, on arrive en bas de la page précédente');
+  });
+
+  await step('diagnostic copié, sans contenu personnel', async () => {
+    await popup.evaluate(() => {
+      navigator.clipboard.writeText = async (t) => {
+        window.__copied = t;
+      };
+    });
+    await popup.click('#diag');
+    await popup.waitForFunction(() => !!window.__copied, null, { timeout: 4000 });
+    const text = await popup.evaluate(() => window.__copied);
+    assert.ok(text.startsWith('# Diagnostic Gmail Lisible'), text.slice(0, 80));
+    assert.ok(text.includes('Listes d’e-mails') && text.includes('Plus anciens'), 'structure et boutons de Gmail inclus');
+    for (const secret of ['Devis atelier', 'x@example.com', 'Commande bois']) {
+      assert.ok(!text.includes(secret), 'contenu personnel présent : ' + secret);
+    }
   });
 
   await step('aucune erreur dans la console', async () => {

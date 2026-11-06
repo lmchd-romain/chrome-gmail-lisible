@@ -6,7 +6,7 @@
  * À l'ouverture d'une conversation, on clique « Tout développer » ; si ce bouton
  * est introuvable, on ouvre le bloc caché puis chaque message replié.
  * On agit seulement pendant quelques secondes après l'ouverture : si vous repliez
- * un message ensuite, il reste replié.
+ * un message ensuite, il reste replié. Les brouillons ne sont jamais ouverts.
  */
 (function () {
   'use strict';
@@ -17,7 +17,6 @@
   const WINDOW_MS = 12000; // durée pendant laquelle on déplie après l'ouverture
   const COLLAPSED = '.kv, .ky';
   const HIDDEN = '.kQ, .kx';
-  const MESSAGE = '.h7, .kv, .ky, .kQ, .kx';
   const EXPAND_ALL_LABELS = [
     'tout developper',
     'expand all',
@@ -28,7 +27,8 @@
     'expandir tudo',
     'alles uitvouwen',
   ];
-  const DRAFT_RE = /^(brouillon|draft|borrador|entwurf|bozza|rascunho|concept)\b/i;
+
+  const VEIL_MS = 1500; // au plus 1,5 s de conversation masquée pendant le dépliage
 
   let currentKey = null;
   let windowEnd = 0;
@@ -36,118 +36,112 @@
   let clicked = new WeakMap(); // élément -> heure du dernier clic
   let seenOpen = new WeakSet(); // messages déjà vus ouverts : si vous les repliez, on n'y touche plus
 
-  function norm(s) {
-    return String(s || '')
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .trim()
-      .toLowerCase();
+  // Compteurs « vivants » des messages repliés/cachés (très rapides à lire).
+  const LIVE = ['kv', 'ky', 'kQ', 'kx'].map((c) => document.getElementsByClassName(c));
+  let quickCount = -1;
+  let quickHash = null;
+
+  // ---------- Voile : la conversation reste invisible le temps du dépliage ----------
+
+  let veiled = null;
+  let veilTimer = 0;
+
+  function veil(list) {
+    if (veiled === list) return;
+    unveil();
+    veiled = list;
+    list.classList.add('glx-expanding', 'glx-fade');
+    veilTimer = setTimeout(unveil, VEIL_MS);
   }
 
-  function threadScope(list) {
-    return list.closest('.a98.iY, .if, .PeIF1d, .Bu, [role="main"]');
-  }
-
-  /** La liste des messages de la conversation affichée (avec un sujet h2.hP à côté). */
-  function visibleThreadList() {
-    for (const list of document.querySelectorAll('[role="list"]')) {
-      if (!list.querySelector(MESSAGE) || !GL.isVisible(list)) continue;
-      const scope = threadScope(list);
-      if (scope && scope.querySelector('h2.hP')) return list;
-    }
-    return null;
-  }
-
-  function threadKey(list) {
-    const subject = threadScope(list).querySelector('h2.hP');
-    const id = subject
-      ? subject.getAttribute('data-thread-perm-id') ||
-        subject.getAttribute('data-legacy-thread-id') ||
-        subject.textContent
-      : '';
-    return location.hash.split('?')[0] + '|' + id;
+  function unveil() {
+    clearTimeout(veilTimer);
+    if (veiled) veiled.classList.remove('glx-expanding');
+    veiled = null;
   }
 
   function findExpandAllButton(list) {
-    const scopes = [threadScope(list), document].filter(Boolean);
+    const scopes = [GL.threadScope(list), document].filter(Boolean);
     for (const scope of scopes) {
       for (const img of scope.querySelectorAll('img.gx')) {
         const btn = img.closest('[role="button"]') || img;
         if (GL.isVisible(btn)) return btn;
       }
       for (const btn of scope.querySelectorAll('[role="button"][aria-label], [role="button"][data-tooltip]')) {
-        const label = norm(btn.getAttribute('aria-label') || btn.getAttribute('data-tooltip'));
+        const label = GL.norm(btn.getAttribute('aria-label') || btn.getAttribute('data-tooltip'));
         if (EXPAND_ALL_LABELS.includes(label) && GL.isVisible(btn)) return btn;
       }
     }
     return null;
   }
 
-  function isDraft(msg) {
-    if (msg.querySelector('.boq')) return true;
-    return DRAFT_RE.test(norm(msg.textContent).slice(0, 40));
-  }
-
-  function recentlyClicked(el, now) {
-    const t = clicked.get(el);
-    return t !== undefined && now - t < 2500;
-  }
-
   function clickOnce(el, now) {
-    if (!el || recentlyClicked(el, now)) return false;
+    const t = clicked.get(el);
+    if (!el || (t !== undefined && now - t < 2500)) return false;
     clicked.set(el, now);
     GL.click(el);
     return true;
   }
 
   function collapsedToOpen(list) {
-    return [...list.querySelectorAll(COLLAPSED)].filter((m) => !seenOpen.has(m) && GL.isVisible(m) && !isDraft(m));
+    return [...list.querySelectorAll(COLLAPSED)].filter(
+      (m) => !seenOpen.has(m) && GL.isVisible(m) && !GL.isDraftMessage(m),
+    );
   }
 
   function fallbackExpand(list, collapsed, now) {
     // 1. Bloc « N messages plus anciens »
     for (const notice of list.querySelectorAll('.adv')) {
-      if (!GL.isVisible(notice)) continue;
-      clickOnce(notice.querySelector('.adx') || notice, now);
+      if (GL.isVisible(notice)) clickOnce(notice.querySelector('.adx') || notice, now);
     }
     // 2. Chaque message replié visible
     let count = 0;
     for (const msg of collapsed) {
       if (count >= 40) break;
-      const target = msg.querySelector('.adf.ads, .adf') || msg;
-      if (clickOnce(target, now)) count++;
+      if (clickOnce(msg.querySelector('.adf.ads, .adf') || msg, now)) count++;
     }
   }
 
   function update(settings) {
-    if (!settings.autoExpand) return;
+    if (!settings.autoExpand) {
+      unveil();
+      return;
+    }
 
-    const list = visibleThreadList();
+    const list = GL.visibleThreadList();
     if (!list) {
       currentKey = null; // rouvrir la même conversation la dépliera de nouveau
+      unveil();
       return;
     }
 
     const now = Date.now();
-    const key = threadKey(list);
+    const key = GL.threadKey(list);
+    let fresh = false;
     if (key !== currentKey) {
       currentKey = key;
       windowEnd = now + WINDOW_MS;
       expandAllClickedAt = 0;
       clicked = new WeakMap();
       seenOpen = new WeakSet();
+      fresh = true;
     }
-    if (now > windowEnd) return;
+    if (now > windowEnd) {
+      unveil();
+      return;
+    }
 
     for (const m of list.querySelectorAll('.h7')) seenOpen.add(m);
     const collapsed = collapsedToOpen(list);
     const hasHidden = !!list.querySelector(HIDDEN);
     if (!collapsed.length && !hasHidden) {
       // Tout est ouvert : on surveille encore un court instant (affichage progressif de Gmail).
+      unveil();
       windowEnd = Math.min(windowEnd, now + 2500);
       GL.later(1000);
       return;
     }
+    if (fresh) veil(list); // conversation qui s'ouvre : on ne la montre qu'une fois dépliée
 
     if (!expandAllClickedAt) {
       const btn = findExpandAllButton(list);
@@ -166,5 +160,18 @@
     GL.later(800);
   }
 
-  GL.register({ name: 'dépliage automatique', update });
+  /** Appelée juste après chaque changement de la page : déplie avant l'affichage. */
+  function quick(settings) {
+    if (!settings.autoExpand) return;
+    let count = 0;
+    for (const l of LIVE) count += l.length;
+    if (count === quickCount && location.hash === quickHash) return;
+    quickCount = count;
+    quickHash = location.hash;
+    if (count > 0) update(settings);
+  }
+
+  window.addEventListener('hashchange', unveil);
+
+  GL.register({ name: 'dépliage automatique', update, quick });
 })();

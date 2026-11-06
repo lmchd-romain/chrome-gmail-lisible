@@ -1,17 +1,33 @@
 /* Gmail Lisible — styles injectés dans Gmail. */
 
-/* ---------- Bouton « Afficher le contenu abrégé » (les trois petits points) ---------- */
-/* Dans les messages affichés seulement (pas dans la zone où vous rédigez : .M9). */
-html[data-glx-hide-trimmed] :is(.ii.gt, .adn) :is(.ajU, .ajV, .adm, .ajR):not(.M9 *),
-html[data-glx-hide-trimmed] :is(.ii.gt, .adn) [role='button']:is([aria-label='Afficher le contenu abrégé'], [aria-label='Show trimmed content']):not(.M9 *) {
+/* ---------- Bouton « Afficher le contenu abrégé » (les trois petits points « ••• ») ---------- */
+/* Dans les messages ET dans la zone où vous écrivez votre réponse. */
+html[data-glx-hide-trimmed] :is(.ajU, .ajV, .ajR),
+html[data-glx-hide-trimmed] :is(.ii.gt, .adn) .adm,
+html[data-glx-hide-trimmed] [role='button']:is(
+    [aria-label='Afficher le contenu abrégé'],
+    [aria-label='Masquer le contenu abrégé'],
+    [aria-label='Show trimmed content'],
+    [aria-label='Hide trimmed content']
+  ) {
   display: none !important;
 }
 
-/* ---------- Noms de pièces jointes « <fichier.pdf> » sous le contenu abrégé ---------- */
+/* ---------- Noms de pièces jointes « <fichier.pdf> » laissés par Apple Mail ---------- */
 html[data-glx-hide-ph] .glx-att-ph,
 html[data-glx-hide-ph] .glx-att-ph-block,
 html[data-glx-hide-ph] br.glx-att-ph-br {
   display: none !important;
+}
+
+/* ---------- Conversation masquée le temps de tout déplier (pas de « flash ») ---------- */
+.glx-fade {
+  transition: opacity 0.14s ease-out;
+}
+
+.glx-expanding {
+  opacity: 0 !important;
+  transition: none !important;
 }
 
 /* ---------- Séparateurs de dates dans la liste des e-mails ---------- */
@@ -22,121 +38,329 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 .glx-day-sep > td.glx-day-sep-cell {
   display: table-cell !important;
   height: auto !important;
-  padding: 12px 16px 4px 18px !important;
+  padding: 7px 16px 3px 20px !important;
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
   color: inherit;
   font: 500 12px/16px 'Google Sans', Roboto, 'Segoe UI', Arial, sans-serif !important;
-  letter-spacing: 0.25px;
+  letter-spacing: 0.3px;
   text-align: left !important;
+  vertical-align: bottom !important;
   white-space: nowrap !important;
   cursor: default;
   user-select: none;
 }
 
 .glx-day-sep-label {
-  opacity: 0.68;
+  opacity: 0.66;
 }
 
-/* Premier séparateur d'une liste : un peu moins d'espace en haut. */
+/* Premier séparateur d'une liste : collé en haut. */
 .glx-day-sep:first-child > td.glx-day-sep-cell {
-  padding-top: 8px !important;
+  padding-top: 4px !important;
 }
 
-/* ---------- Réponse flottante ---------- */
-.glx-floating {
-  position: fixed !important;
-  top: auto !important;
-  left: auto !important;
-  right: var(--glx-right, 24px) !important;
-  bottom: var(--glx-bottom, 0px) !important;
-  width: var(--glx-width, 600px) !important;
-  max-width: calc(100vw - 32px) !important;
-  max-height: var(--glx-maxh, 70vh) !important;
-  overflow: auto !important;
-  overscroll-behavior: contain;
-  margin: 0 !important;
-  padding: 6px 10px 8px !important;
-  box-sizing: border-box !important;
-  z-index: 5 !important;
-  background: var(--glx-bg, #fff) !important;
-  border-radius: 0 !important;
-  box-shadow: 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12),
-    0 5px 5px -3px rgba(0, 0, 0, 0.2) !important;
-  animation: glx-float-in 0.16s ease-out;
-}
-
-.glx-floating.glx-floating-min {
+/* ---------- Pièces jointes (barre d'un message et récapitulatif) ---------- */
+.hq.glx-att-native {
   display: none !important;
 }
 
-@keyframes glx-float-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.glx-att-bar,
+.glx-att-summary {
+  --glx-line: rgba(128, 128, 128, 0.32);
+  --glx-hover: rgba(128, 128, 128, 0.14);
+  --glx-muted: rgba(128, 128, 128, 0.95);
+  color: inherit;
+  font: 400 13px/18px 'Google Sans', Roboto, 'Segoe UI', Arial, sans-serif;
 }
 
-.glx-float-header {
-  position: fixed;
-  z-index: 6;
-  height: 40px;
-  box-sizing: border-box;
+.glx-att-bar {
+  margin: 4px 0 12px;
+}
+
+.glx-att-bar.glx-att-top {
+  margin: 2px 0 14px;
+}
+
+.glx-att-head {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 6px 0 16px;
-  border-radius: 12px 12px 0 0;
-  background: #f2f6fc;
-  color: #041e49;
-  font: 500 14px/20px 'Google Sans', Roboto, 'Segoe UI', Arial, sans-serif;
-  box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.12);
+  gap: 12px;
+  margin: 0 0 6px 2px;
+  color: var(--glx-muted);
+  font-size: 12px;
+}
+
+.glx-att-all {
+  all: unset;
   cursor: pointer;
-  user-select: none;
-  animation: glx-float-in 0.16s ease-out;
+  color: #0b57d0;
+  font-weight: 500;
 }
 
-.glx-float-header.glx-dark {
-  background: #2d2f31;
-  color: #e3e3e3;
+.glx-att-all:hover {
+  text-decoration: underline;
 }
 
-.glx-float-header .glx-title {
-  flex: 1;
+.glx-att-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
+.glx-att-item {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--glx-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.glx-att-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 2px 0 4px;
+}
+
+.glx-att-name {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 340px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.glx-att-name:hover {
+  background: var(--glx-hover);
+}
+
+.glx-att-name:focus-visible,
+.glx-att-btn:focus-visible,
+.glx-att-thumb:focus-visible,
+.glx-att-summary-head:focus-visible,
+.glx-att-more:focus-visible {
+  outline: 2px solid #0b57d0;
+  outline-offset: 1px;
+}
+
+.glx-att-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  opacity: 0.8;
+}
+
+.glx-att-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
-.glx-float-header button {
-  all: unset;
+.glx-att-size,
+.glx-att-meta {
   flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  color: var(--glx-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.glx-att-actions {
+  display: flex;
+  flex: none;
+  margin-left: auto;
+}
+
+.glx-att-btn {
+  all: unset;
   display: grid;
   place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   cursor: pointer;
   color: inherit;
 }
 
-.glx-float-header button:hover {
-  background: rgba(128, 128, 128, 0.18);
+.glx-att-btn:hover {
+  background: var(--glx-hover);
 }
 
-.glx-float-header button:focus-visible {
-  outline: 2px solid #0b57d0;
-  outline-offset: -2px;
-}
-
-.glx-float-header svg {
-  width: 20px;
-  height: 20px;
+.glx-att-btn svg {
+  width: 18px;
+  height: 18px;
   fill: currentColor;
+  opacity: 0.78;
+}
+
+/* Petites cartes avec aperçu (mode non compact). */
+.glx-att-cards .glx-att-item {
+  width: 200px;
+}
+
+.glx-att-thumb {
+  all: unset;
+  display: block;
+  height: 104px;
+  cursor: pointer;
+  background: var(--glx-hover);
+}
+
+.glx-att-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.glx-att-cards .glx-att-name {
+  max-width: 120px;
+}
+
+/* Récapitulatif en haut de la conversation. */
+.glx-att-summary {
+  margin: 4px 0 12px;
+  padding: 4px 8px 8px;
+  border: 1px solid var(--glx-line);
+  border-radius: 12px;
+}
+
+.glx-att-summary-head {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.glx-att-summary-head:hover {
+  background: var(--glx-hover);
+}
+
+.glx-att-summary-head svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  flex: none;
+}
+
+.glx-att-summary-title {
+  flex: 1;
+}
+
+.glx-att-summary-head .glx-chevron {
+  transition: transform 0.15s ease;
+  transform: rotate(180deg);
+}
+
+.glx-att-summary.is-closed .glx-chevron {
+  transform: none;
+}
+
+.glx-att-summary.is-closed .glx-att-list,
+.glx-att-summary.is-closed .glx-att-more {
+  display: none;
+}
+
+.glx-att-summary .glx-att-list {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 2px 0 0;
+}
+
+.glx-att-summary .glx-att-item {
+  border: 0;
+  border-radius: 8px;
+}
+
+.glx-att-summary .glx-att-item:hover {
+  background: var(--glx-hover);
+}
+
+.glx-att-summary .glx-att-name {
+  max-width: 48%;
+}
+
+.glx-att-summary .glx-att-item.is-extra {
+  display: none;
+}
+
+.glx-att-more {
+  all: unset;
+  margin: 4px 0 0 8px;
+  color: #0b57d0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.glx-att-more:hover {
+  text-decoration: underline;
+}
+
+.glx-flash {
+  animation: glx-flash 1.6s ease-out;
+}
+
+@keyframes glx-flash {
+  0%,
+  35% {
+    box-shadow: inset 0 0 0 2px #0b57d0;
+  }
+  100% {
+    box-shadow: inset 0 0 0 2px transparent;
+  }
+}
+
+/* ---------- Défilement continu : bulle d'information ---------- */
+.glx-page-hint {
+  position: fixed;
+  z-index: 1000;
+  transform: translate(-50%, 6px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 16px 9px;
+  border-radius: 18px;
+  background: #303134;
+  color: #fff;
+  font: 500 13px/18px 'Google Sans', Roboto, 'Segoe UI', Arial, sans-serif;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.glx-page-hint.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.glx-page-hint i {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: #8ab4f8;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 0.1s linear;
 }

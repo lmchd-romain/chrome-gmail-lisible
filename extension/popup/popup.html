@@ -29,26 +29,62 @@
 
         <label class="row">
           <span class="text">
-            <span class="title">Masquer « Afficher le contenu abrégé »</span>
-            <span class="desc">Cache le bouton « ••• » sous chaque message.</span>
+            <span class="title">Masquer «&nbsp;Afficher le contenu abrégé&nbsp;»</span>
+            <span class="desc">Cache le bouton «&nbsp;•••&nbsp;» sous les messages et dans votre réponse.</span>
           </span>
           <input type="checkbox" class="switch" data-key="hideTrimmedButton" />
         </label>
 
         <label class="row">
           <span class="text">
-            <span class="title">Masquer les noms de pièces jointes</span>
-            <span class="desc">Cache les « &lt;plan.pdf&gt; » affichés sous le contenu abrégé.</span>
+            <span class="title">Masquer les noms de fichiers «&nbsp;&lt;plan.pdf&gt;&nbsp;»</span>
+            <span class="desc">Ajoutés par Apple Mail dans le texte des réponses.</span>
           </span>
           <input type="checkbox" class="switch" data-key="hideAttachmentPlaceholders" />
         </label>
 
         <label class="row">
           <span class="text">
-            <span class="title">Réponse flottante</span>
-            <span class="desc">Quand vous remontez la conversation, votre réponse reste visible en bas à droite. Elle reprend sa place quand vous redescendez.</span>
+            <span class="title">Réponse en fenêtre pop-up quand je remonte</span>
+            <span class="desc">Votre réponse passe dans la fenêtre pop-up de Gmail pendant que vous relisez.</span>
           </span>
           <input type="checkbox" class="switch" data-key="floatingReply" />
+        </label>
+
+        <label class="row sub" data-depends="floatingReply">
+          <span class="text">
+            <span class="title">La remettre en place tout en bas</span>
+            <span class="desc">Gmail l'enregistre en brouillon, puis elle se rouvre dans la conversation.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="dockReplyAtBottom" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Pièces jointes</h2>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Au-dessus du message</span>
+            <span class="desc">Les pièces jointes s'affichent avant le texte.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="attachmentsOnTop" />
+        </label>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Compactes</span>
+            <span class="desc">Une ligne par fichier, sans grand aperçu, avec Télécharger et Drive.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="attachmentsCompact" />
+        </label>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Toutes regroupées en haut</span>
+            <span class="desc">Dans les longues conversations, la liste de toutes les pièces jointes.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="attachmentsSummary" />
         </label>
       </section>
 
@@ -57,13 +93,21 @@
 
         <label class="row">
           <span class="text">
+            <span class="title">Défilement continu</span>
+            <span class="desc">En bas de la liste, continuez à faire défiler : les e-mails plus anciens s'affichent. Tout en haut, idem vers les plus récents.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="infiniteScroll" />
+        </label>
+
+        <label class="row">
+          <span class="text">
             <span class="title">Séparateurs de dates</span>
-            <span class="desc">Un petit titre entre les e-mails de chaque jour.</span>
+            <span class="desc">Un petit titre entre les e-mails de chaque jour (sauf «&nbsp;Messages suivis&nbsp;»).</span>
           </span>
           <input type="checkbox" class="switch" data-key="daySeparators" />
         </label>
 
-        <div class="modes" role="radiogroup" aria-label="Type de séparateurs">
+        <div class="modes" role="radiogroup" aria-label="Type de séparateurs" data-depends="daySeparators">
           <label class="mode">
             <input type="radio" name="daySeparatorMode" value="day" />
             <span class="mode-body">
@@ -83,8 +127,16 @@
     </main>
 
     <footer>
-      <span>Pensez à recharger Gmail après une mise à jour de l'extension.</span>
-      <span class="version" id="version"></span>
+      <div class="foot-row">
+        <span>Après une mise à jour de l'extension, rechargez Gmail.</span>
+        <span class="version" id="version"></span>
+      </div>
+      <div class="diag">
+        <button type="button" id="diag">Copier un diagnostic</button>
+        <span class="diag-status" id="diag-status" role="status"></span>
+      </div>
+      <p class="diag-help">En cas de souci : ouvrez la page Gmail concernée, cliquez ici, puis collez le résultat dans la discussion. Le contenu de vos e-mails n'est pas inclus.</p>
+      <textarea id="diag-text" readonly hidden></textarea>
     </footer>
 
     <script src="../shared/defaults.js"></script>

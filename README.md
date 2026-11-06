@@ -6,14 +6,21 @@ Extension Chrome qui rend Gmail plus lisible.
 
 **Dans les conversations**
 
-- **Déplie tous les messages.** Plus de messages repliés ni de « N messages plus anciens » dans les longues conversations. Si vous repliez un message ensuite, il reste replié.
-- **Masque le bouton « Afficher le contenu abrégé »** (les trois petits points sous chaque message).
-- **Masque les noms de pièces jointes** du type `<BEAR_Rennes_6mm.dxf><BEAR_Rennes_6mm.pdf><PastedGraphic-1.tiff>` qui s'affichent sous ce bouton (Apple Mail les ajoute dans ses réponses).
-- **Réponse flottante.** Après un clic sur « Répondre », si vous remontez pour relire la conversation, votre réponse reste visible en bas à droite, comme une fenêtre pop-up. Quand vous redescendez tout en bas, elle reprend sa place. Sa barre de titre permet de la réduire (—) ou d'y revenir (⤓). Votre texte n'est jamais perdu : seul l'affichage change.
+- **Déplie tous les messages**, y compris les « N messages plus anciens ». La conversation s'affiche directement dépliée, sans passer par l'état replié. Si vous repliez un message ensuite, il reste replié.
+- **Masque le bouton « Afficher le contenu abrégé »** (les trois petits points « ••• ») sous les messages et dans la zone où vous écrivez votre réponse.
+- **Masque les noms de fichiers** du type `<BEAR_Rennes_6mm.dxf><BEAR_Rennes_6mm.pdf>` qu'Apple Mail ajoute dans le texte des réponses.
+- **Réponse en fenêtre pop-up** : après un clic sur « Répondre », si vous remontez pour relire la conversation, la réponse passe dans la fenêtre pop-up de Gmail (la vraie). Quand vous redescendez tout en bas, elle reprend sa place : Gmail l'enregistre en brouillon, puis l'extension rouvre ce brouillon dans la conversation. Votre texte est conservé.
+
+**Pièces jointes**
+
+- **Au-dessus du message** : elles s'affichent avant le texte.
+- **Compactes** : une ligne par fichier (icône, nom, taille, Télécharger, Drive), sans les grands aperçus. Un clic sur le nom ouvre l'aperçu de Gmail.
+- **Toutes regroupées** : en haut des longues conversations, la liste de toutes les pièces jointes, avec l'expéditeur, la date et un bouton pour aller au message d'origine.
 
 **Dans la boîte de réception** (et les libellés, recherches…)
 
-- **Séparateurs de dates** entre les e-mails, au choix :
+- **Défilement continu** : arrivé en bas de la liste, continuez à faire défiler, et la page suivante s'affiche toute seule. Tout en haut, continuez vers le haut pour revenir aux e-mails plus récents.
+- **Séparateurs de dates** entre les e-mails, sauf dans la section « Messages suivis ». Deux modes au choix :
   - *Chaque jour* : « Aujourd'hui », « Hier », « 04/11 », « 03/11 »…
   - *Regrouper* : « Aujourd'hui », « Hier », « Cette semaine », « Semaine dernière », « Octobre »…
 
@@ -21,7 +28,7 @@ Chaque fonction se règle en cliquant sur l'icône de l'extension. Les changemen
 
 ## Installation (5 minutes)
 
-1. **Télécharger** : [chrome-gmail-lisible-main.zip](https://github.com/lmchd-romain/chrome-gmail-lisible/archive/refs/heads/main.zip) (connecté à GitHub).
+1. **Télécharger** : [chrome-gmail-lisible-main.zip](https://github.com/lmchd-romain/chrome-gmail-lisible/archive/refs/heads/main.zip) (en étant connecté à GitHub).
 2. **Décompresser** le fichier (double-clic). Ranger le dossier obtenu `chrome-gmail-lisible-main` dans un endroit fixe, par exemple **Documents**. Ne plus le déplacer ni le supprimer : Chrome lit l'extension dans ce dossier.
 3. Dans Chrome, ouvrir l'adresse `chrome://extensions`.
 4. En haut à droite, activer **Mode développeur**.
@@ -39,14 +46,10 @@ Vos réglages sont conservés.
 
 ## Bon à savoir
 
-- L'extension ne fonctionne que sur `mail.google.com`. Elle n'envoie aucune donnée nulle part : tout se passe dans votre navigateur. Elle demande seulement le droit d'enregistrer vos réglages.
+- **Page de 100 e-mails** : Gmail affiche 50 e-mails par page. Pour changer moins souvent de page avec le défilement continu : Gmail → ⚙️ → *Voir tous les paramètres* → *Général* → *Taille maximale de la page* → **100** → *Enregistrer*. Gmail ne permet pas d'ajouter des e-mails à une liste déjà affichée : l'extension passe donc à la page suivante automatiquement.
+- L'extension ne fonctionne que sur `mail.google.com`. Elle n'envoie aucune donnée nulle part : tout se passe dans votre navigateur. Elle demande seulement le droit d'enregistrer vos réglages et de copier le diagnostic.
 - Contenu abrégé masqué : pour revoir exceptionnellement un texte cité, désactivez le réglage le temps de le lire.
-- Gmail modifie parfois sa page. Si une fonction ne marche plus, désactivez-la dans les réglages et signalez-le.
-
-## Prochaines étapes
-
-- Défilement infini à la place de « 1–50 sur … » (plus besoin de changer de page).
-- Retrouver facilement toutes les pièces jointes d'une longue conversation.
+- **Un souci ?** Gmail modifie parfois sa page. Ouvrez la page Gmail concernée, cliquez sur l'icône de l'extension, puis **Copier un diagnostic**, et collez le résultat dans la discussion. Le diagnostic décrit la structure de la page, sans le contenu de vos e-mails.
 
 ## Pour les développeurs
 

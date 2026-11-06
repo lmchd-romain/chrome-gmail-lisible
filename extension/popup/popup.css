@@ -172,9 +172,19 @@ h2 {
   transition: opacity 0.18s ease;
 }
 
-.modes.off {
+.modes.off,
+.row.off {
   opacity: 0.45;
   pointer-events: none;
+}
+
+/* Option secondaire (dépend de celle du dessus). */
+.row.sub {
+  padding-top: 2px;
+  padding-left: 14px;
+  border-left: 2px solid var(--line);
+  margin-left: 2px;
+  transition: opacity 0.18s ease;
 }
 
 .mode {
@@ -216,15 +226,69 @@ h2 {
 
 footer {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px 12px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px 14px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 11px;
 }
 
+.foot-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .version {
   flex: none;
   font-variant-numeric: tabular-nums;
+}
+
+.diag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#diag {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: 500 12px/16px inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#diag:hover {
+  border-color: var(--track);
+}
+
+#diag:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.diag-status {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.diag-help {
+  margin: 0;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+#diag-text {
+  width: 100%;
+  height: 90px;
+  font: 11px/1.3 ui-monospace, monospace;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
 }

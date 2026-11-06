@@ -80,7 +80,34 @@
     return !!el && el.nodeType === 1 && el.classList.contains(SEP);
   }
 
-  function syncBody(tbody, mode, lang, now) {
+  // ---------- Section « Messages suivis » : pas de séparateurs ----------
+
+  const NO_SEP_SECTIONS = ['messages suivis', 'suivis', 'starred', 'markiert', 'destacados', 'speciali', 'com estrela', 'met ster'];
+
+  /** Titre de la section de Gmail qui contient ce tableau (boîte de réception à plusieurs sections). */
+  function sectionTitle(tbody) {
+    const table = tbody.closest('table');
+    let el = table && table.parentElement;
+    for (let i = 0; el && i < 8; i++, el = el.parentElement) {
+      if (el.querySelectorAll('table').length > 1 && el.querySelectorAll('tr.zA').length > tbody.rows.length) break;
+      const title = el.querySelector('.Wn, h3.Wr');
+      if (title && title.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING) return GL.norm(title.textContent);
+    }
+    return '';
+  }
+
+  function isStarred(row) {
+    return !!row.querySelector('.T-KT-Jp, .T-KT:not(.aXw)');
+  }
+
+  function isStarredSection(tbody, rows, visibleLists) {
+    const title = sectionTitle(tbody);
+    if (title) return NO_SEP_SECTIONS.some((t) => title === t || title.startsWith(t + ' '));
+    // Sans titre lisible : plusieurs listes affichées et toutes les lignes de celle-ci suivies.
+    return visibleLists > 1 && rows.length > 0 && rows.every(isStarred);
+  }
+
+  function syncBody(tbody, mode, lang, now, visibleLists) {
     // Lignes de Gmail qui portent une date (les autres sont ignorées).
     const rows = [];
     const dates = [];
@@ -90,6 +117,11 @@
       if (!d) continue;
       rows.push(el);
       dates.push(d);
+    }
+
+    if (isStarredSection(tbody, rows, visibleLists)) {
+      for (const sep of tbody.querySelectorAll(':scope > .' + SEP)) sep.remove();
+      return;
     }
 
     // Date « effective » : jamais plus ancienne qu'une ligne située en dessous
@@ -141,7 +173,9 @@
     for (const sep of document.querySelectorAll('.' + SEP)) {
       if (sep.parentElement) bodies.add(sep.parentElement);
     }
-    for (const tbody of bodies) syncBody(tbody, settings.daySeparatorMode, lang, now);
+    let visibleLists = 0;
+    for (const tbody of bodies) if (GL.isVisible(tbody)) visibleLists++;
+    for (const tbody of bodies) syncBody(tbody, settings.daySeparatorMode, lang, now, visibleLists);
   }
 
   GL.register({ name: 'séparateurs de dates', update });

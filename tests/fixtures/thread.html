@@ -25,29 +25,46 @@
   .Am.editable { min-height: 120px; outline: none; border-top: 1px solid #eee; padding-top: 8px; }
   .amn { padding: 16px 72px 40px; }
   .filler { height: 380px; color: #999; }
+  .aQH { display: flex; gap: 8px; }
+  .aZo { display: inline-block; width: 180px; height: 120px; border: 1px solid #ddd; position: relative; }
+  .aQG { width: 100%; height: 80px; }
+  .dw { position: fixed; right: 16px; bottom: 0; z-index: 10; }
+  [role=dialog] { width: 520px; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.3); border-radius: 8px 8px 0 0; }
+  .Hm img { width: 16px; height: 16px; display: inline-block; background: #999; margin: 4px; }
 </style>
 </head>
 <body>
 <div class="nH top">Barre du haut</div>
 <div class="Tm aeJ" id="scroller">
   <div role="main">
-    <div class="a98 iY">
-      <div class="nH">
-        <div class="ha"><h2 class="hP" data-thread-perm-id="thread-f:1784000000000000001" data-legacy-thread-id="18c0000000000001">Plans BEAR Rennes</h2></div>
-        <div class="bHJ" id="toolbar"></div>
-      </div>
-      <div role="list" id="list"></div>
-      <div class="amn"><span role="button" class="ams bkH" id="reply-btn">Répondre</span> <span role="button" class="ams bkI">Transférer</span></div>
-    </div>
+    <div class="a98 iY" id="thread"></div>
   </div>
 </div>
+<div class="dw" id="dw"></div>
 
 <script>
 (function () {
   const params = new URLSearchParams(location.search);
-  const list = document.getElementById('list');
+  const thumb = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#c5d4f5"/></svg>');
+  const icon = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" rx="2" fill="#d93025"/></svg>');
+  window.__fake = { expandAllClicks: 0, headerClicks: 0, noticeClicks: 0, downloads: [], drive: [], previews: [], downloadAll: 0, flashSeen: false, closes: 0 };
 
-  // Corps d'un message avec contenu abrégé et noms de pièces jointes façon Apple Mail.
+  // Zone de pièces jointes façon Gmail (boutons affichés au survol).
+  function attachments(files) {
+    const cards = files.map(([name, size]) => `
+      <span class="aZo" download_url="application/pdf:${name}:https://mail.google.com/mail/u/0?ui=2&attid=${encodeURIComponent(name)}&view=att&disp=safe">
+        <a class="aQy e" role="link" target="_blank" href="https://mail.google.com/mail/u/0?ui=2&view=att&disp=inline&n=${encodeURIComponent(name)}">
+          <div aria-hidden="true"><img class="aQG aYB" src="${thumb}"><div class="aYy"><div class="aYA"><img class="aSM" src="${icon}"></div>
+          <div class="aYz"><div class="a12"><div class="aQA"><span class="aV3 a6U">${name}</span></div><div class="aYp"><span class="SaH2Ve">${size}</span></div></div></div></div></div>
+        </a>
+        <div class="aQw"></div>
+      </span>`).join('');
+    const toolbar = files.length > 1
+      ? `<div class="ho"><span class="aVW"><span>${files.length}</span> pièces jointes</span><div class="aZi J-J5-Ji"><div role="button" class="aZh" aria-label="Tout télécharger" data-tooltip="Tout télécharger">⬇</div></div></div>`
+      : '';
+    return `<div class="hq gt"><div class="hp"></div><div class="a3I">Zone contenant les pièces jointes</div>${toolbar}<div class="aQH">${cards}</div></div><div class="hi"></div>`;
+  }
+
   function bodyHtml(i) {
     if (i === 6) {
       return `<div dir="ltr">Merci, voici la version corrigée des plans.</div>
@@ -64,57 +81,160 @@
           <div id="keep-url">&lt;www.example.com&gt;</div>
         </div>`;
     }
+    if (i === 7) {
+      // Cas de la capture : signature, logo, puis noms de fichiers dans une citation, sans bouton « ••• ».
+      return `<div>Amandine THÉRET<br><br>Studio Graphique - Image<br>Tel.: 05 34 50 16 00</div>
+        <div><br><img src="${thumb}" width="160" height="160" alt="logo"><br><br></div>
+        <blockquote type="cite" id="screenshot-case"><div>​&lt;BEAR_Rennes_6mm.pdf&gt;<span>&lt;BEAR_Rennes_10mm.d<wbr>xf&gt;</span>&lt;BEAR_Rennes_10mm.pdf&gt; </div></blockquote>
+        <div id="after-case">Merci !</div>`;
+    }
     if (i === 2) {
       return `<div dir="ltr">Message ${i} sans contenu abrégé. &lt;garde-moi.pdf&gt; doit rester visible.</div>`;
     }
     return `<div dir="ltr">Texte du message ${i}.</div><div class="filler">(contenu long)</div>`;
   }
 
-  // États : h7 = ouvert, kv = replié, kQ = caché derrière « N messages plus anciens »
-  const states = ['h7', 'kv', 'kv', 'kQ', 'kQ', 'kQ', 'kv', 'h7'];
-  states.forEach((state, i) => {
-    if (i === 3) {
-      const notice = document.createElement('div');
-      notice.className = 'kQ adv';
-      notice.id = 'notice';
-      notice.innerHTML = '<div class="G3"><span class="adx" role="button"><span>3</span></span> messages plus anciens</div>';
-      list.appendChild(notice);
+  const FILES = {
+    0: [['BEAR_Rennes_6mm.pdf', '245 Ko'], ['BEAR_Rennes_6mm.dxf', '1,2 Mo']],
+    6: [['Devis_2026.pdf', '88 Ko']],
+    7: [['BEAR_Rennes_6mm.pdf', '245 Ko'], ['PastedGraphic-1.tiff', '3 Mo'], ['Plan_final.pdf', '512 Ko']],
+  };
+
+  function build() {
+    const thread = document.getElementById('thread');
+    thread.innerHTML = `
+      <div class="nH">
+        <div class="ha"><h2 class="hP" data-thread-perm-id="thread-f:1784000000000000001" data-legacy-thread-id="18c0000000000001">Plans BEAR Rennes</h2></div>
+        <div class="bHJ" id="toolbar"></div>
+      </div>
+      <div role="list" id="list"></div>
+      <div class="amn"><span role="button" class="ams bkH" id="reply-btn">Répondre</span> <span role="button" class="ams bkI">Transférer</span></div>`;
+    const list = document.getElementById('list');
+    // États : h7 = ouvert, kv = replié, kQ = caché derrière « N messages plus anciens »
+    const states = ['h7', 'kv', 'kv', 'kQ', 'kQ', 'kQ', 'kv', 'h7'];
+    states.forEach((state, i) => {
+      if (i === 3) {
+        const notice = document.createElement('div');
+        notice.className = 'kQ adv';
+        notice.id = 'notice';
+        notice.innerHTML = '<div class="G3"><span class="adx" role="button"><span>3</span></span> messages plus anciens</div>';
+        list.appendChild(notice);
+      }
+      const m = document.createElement('div');
+      m.setAttribute('role', 'listitem');
+      m.className = state;
+      m.dataset.index = i;
+      m.innerHTML = `<div class="adf ads">Expéditeur ${i} — aperçu du message ${i}</div>
+        <div class="adn ads"><div class="gs"><h3 class="iw"><span class="gD" email="exp${i}@example.com" name="Expéditeur${i} Nom">Expéditeur${i} Nom</span></h3>
+        <span class="g3" title="mer. 4 nov. 2026, 10:0${i}">4 nov.</span>
+        <div class="ii gt"><div class="a3s aiL">${bodyHtml(i)}</div></div>${FILES[i] ? attachments(FILES[i]) : ''}</div></div>
+        <div class="ip iq"></div>`;
+      list.appendChild(m);
+    });
+    if (!params.has('noExpandAll')) {
+      const btn = document.createElement('div');
+      btn.setAttribute('role', 'button');
+      btn.setAttribute('aria-label', 'Tout développer');
+      btn.id = 'expand-all';
+      btn.innerHTML = '<img class="gx" alt="" style="width:20px;height:20px;display:inline-block;background:#ccc">';
+      document.getElementById('toolbar').appendChild(btn);
     }
-    const m = document.createElement('div');
-    m.setAttribute('role', 'listitem');
-    m.className = state;
-    m.dataset.index = i;
-    m.innerHTML = `<div class="adf ads">Expéditeur ${i} — aperçu du message ${i}</div>
-      <div class="adn ads"><div class="gs"><h3 class="iw">Expéditeur ${i}</h3>
-      <div class="ii gt"><div class="a3s aiL">${bodyHtml(i)}</div></div></div></div>
-      <div class="ip iq"></div>`;
-    list.appendChild(m);
-  });
+  }
+
+  // Détecteur de « flash » : une image affichée où des messages repliés sont visibles.
+  (function sample() {
+    const list = document.getElementById('list');
+    if (list && list.querySelector('.kv:not(#draft)') && getComputedStyle(list).opacity !== '0') window.__fake.flashSeen = true;
+    requestAnimationFrame(sample);
+  })();
 
   function expand(msg) {
     msg.classList.remove('kv', 'kQ');
     msg.classList.add('h7');
   }
 
-  // Bouton « Tout développer » (img.gx), sauf avec ?noExpandAll
-  if (!params.has('noExpandAll')) {
-    const btn = document.createElement('div');
-    btn.setAttribute('role', 'button');
-    btn.setAttribute('aria-label', 'Tout développer');
-    btn.id = 'expand-all';
-    btn.innerHTML = '<img class="gx" alt="" style="width:20px;height:20px;display:inline-block;background:#ccc">';
-    document.getElementById('toolbar').appendChild(btn);
+  function expandAll() {
+    const list = document.getElementById('list');
+    list.querySelectorAll('.kv, .kQ').forEach((m) => (m.id === 'draft' ? null : m.classList.contains('adv') ? m.remove() : expand(m)));
   }
 
-  window.__fake = { expandAllClicks: 0, headerClicks: 0, noticeClicks: 0 };
+  // ---------- Réponse dans la conversation / fenêtre pop-up ----------
+  function composeHtml(text) {
+    return `<div class="M9" id="compose">
+        <div class="aoP"><div>À : Romain <div role="button" class="aBi" id="popout" aria-label="Afficher dans une fenêtre pop-up" data-tooltip="Afficher dans une fenêtre pop-up">⧉</div></div>
+        <div class="Am Al editable" id="editor" contenteditable="true" role="textbox" g_editable="true">${text || ''}</div>
+        <div class="ajR" id="compose-dots" role="button" aria-label="Afficher le contenu abrégé" style="user-select: none;"></div>
+        <div class="btC"><div role="button" class="T-I aoO" id="send">Envoyer</div></div></div>
+      </div>`;
+  }
+
+  function openReply(text) {
+    const list = document.getElementById('list');
+    const last = [...list.querySelectorAll('[role=listitem]')].filter((m) => m.id !== 'draft').pop();
+    const ip = last.querySelector('.ip');
+    ip.classList.add('adB');
+    ip.innerHTML = composeHtml(text);
+    document.getElementById('editor').focus();
+    document.getElementById('scroller').scrollTop = 1e9;
+  }
+
+  function popOut() {
+    const ip = document.querySelector('.ip.adB');
+    const text = document.getElementById('editor').innerHTML;
+    ip.classList.remove('adB');
+    ip.innerHTML = '';
+    document.getElementById('dw').innerHTML = `<div class="nH nn"><div class="nH Hd" role="dialog" id="popup">
+      <div class="nH Hy aXJ"><table class="cf Ht"><tbody><tr><td><div class="Hp"><h2 class="a3E">Re: Plans BEAR Rennes</h2></div></td>
+      <td class="Hm"><img class="Hl" alt="" aria-label="Réduire"><img class="Hq aUG" alt="" aria-label="Plein écran"><img class="Ha" id="popup-close" alt="" aria-label="Enregistrer et fermer"></td></tr></tbody></table></div>
+      <div class="M9"><div class="aoP"><div class="Am Al editable" id="editor" contenteditable="true" role="textbox" g_editable="true">${text}</div>
+      <div class="ajR" role="button" aria-label="Afficher le contenu abrégé"></div></div></div></div></div>`;
+    window.__fake.popouts = (window.__fake.popouts || 0) + 1;
+  }
+
+  function closePopup() {
+    const editor = document.querySelector('#popup #editor');
+    const text = editor ? editor.innerHTML : '';
+    document.getElementById('dw').innerHTML = '';
+    window.__fake.closes++;
+    if (text.replace(/<[^>]*>/g, '').trim()) {
+      // Gmail enregistre le brouillon : il apparaît à la fin de la conversation.
+      setTimeout(() => {
+        const d = document.createElement('div');
+        d.setAttribute('role', 'listitem');
+        d.className = 'kv';
+        d.id = 'draft';
+        d.dataset.text = text;
+        d.innerHTML = `<div class="adf ads"><span class="boq">Brouillon</span> — ${text.replace(/<[^>]*>/g, '').slice(0, 30)}</div>`;
+        document.getElementById('list').appendChild(d);
+      }, 200);
+    }
+  }
+
+  document.addEventListener('mouseover', (e) => {
+    const card = e.target.closest && e.target.closest('.aZo');
+    if (!card) return;
+    const zone = card.querySelector('.aQw');
+    if (zone && !zone.children.length) {
+      zone.innerHTML = '<div role="button" class="T-I aSK" aria-label="Télécharger" data-tooltip="Télécharger">⬇</div><div role="button" class="T-I aSG" aria-label="Ajouter à Drive" data-tooltip="Ajouter à Drive">▲</div>';
+    }
+  });
 
   document.addEventListener('click', (e) => {
     const t = e.target;
+    const list = document.getElementById('list');
+    const card = t.closest('.aZo');
+    if (card) {
+      const name = card.querySelector('.aV3').textContent;
+      if (t.closest('[aria-label="Télécharger"]')) window.__fake.downloads.push(name);
+      else if (t.closest('[aria-label="Ajouter à Drive"]')) window.__fake.drive.push(name);
+      else if (t.closest('a.aQy')) { e.preventDefault(); window.__fake.previews.push(name); }
+      return;
+    }
+    if (t.closest('[aria-label="Tout télécharger"]')) { window.__fake.downloadAll++; return; }
     if (t.closest('#expand-all')) {
       window.__fake.expandAllClicks++;
-      setTimeout(() => {
-        list.querySelectorAll('.kv, .kQ').forEach((m) => (m.classList.contains('adv') ? m.remove() : expand(m)));
-      }, 150);
+      if (params.has('asyncExpand')) setTimeout(expandAll, 400);
+      else expandAll();
       return;
     }
     const adx = t.closest('.adx');
@@ -128,6 +248,15 @@
       }, 150);
       return;
     }
+    const draft = t.closest('#draft .adf');
+    if (draft) {
+      const item = draft.closest('#draft');
+      const text = item.dataset.text;
+      item.remove();
+      openReply(text);
+      window.__fake.draftReopened = true;
+      return;
+    }
     const adf = t.closest('.kv .adf');
     if (adf) {
       window.__fake.headerClicks++;
@@ -135,27 +264,20 @@
       setTimeout(() => expand(msg), 100);
       return;
     }
-    if (t.closest('#reply-btn')) openReply();
+    if (t.closest('#popout')) return popOut();
+    if (t.closest('#popup-close')) return closePopup();
+    if (t.closest('#reply-btn')) openReply('');
   });
 
-  function openReply() {
-    const last = list.querySelector('[role=listitem]:last-child');
-    const ip = last.querySelector('.ip');
-    ip.classList.add('adB');
-    ip.innerHTML = `<div class="M9" id="compose">
-        <div class="aoP"><div>À : Romain</div>
-        <div class="Am Al editable" id="editor" contenteditable="true" role="textbox" g_editable="true"></div>
-        <div class="ajR" id="compose-dots" role="button" aria-label="Afficher le contenu abrégé" style="user-select: none;"></div>
-        <div class="btC"><div role="button" class="T-I aoO" id="send">Envoyer</div></div></div>
-      </div>`;
-    document.getElementById('editor').focus();
-    document.getElementById('scroller').scrollTop = 1e9;
-  }
   window.__openReply = openReply;
   window.__closeReply = () => {
-    const ip = list.querySelector('.ip.adB');
+    const ip = document.querySelector('.ip.adB');
     if (ip) { ip.classList.remove('adB'); ip.innerHTML = ''; }
   };
+
+  // Gmail affiche la conversation un peu après le chargement de la page.
+  if (params.has('delayRender')) setTimeout(build, 300);
+  else build();
 })();
 </script>
 </body>

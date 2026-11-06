@@ -19,9 +19,14 @@
   let ready = false;
   let timer = 0;
 
+  const MESSAGE = '.h7, .kv, .ky, .kQ, .kx';
+  const DRAFT_WORDS = ['brouillon', 'draft', 'borrador', 'entwurf', 'bozza', 'rascunho', 'concept'];
+
   const GL = {
     disabled: false,
     settings: Object.assign({}, DEFAULTS),
+    MESSAGE,
+    EDITOR: '[g_editable="true"], div[contenteditable="true"][role="textbox"], div[contenteditable="true"].editable',
 
     register(feature) {
       features.push(feature);
@@ -51,12 +56,96 @@
       el.dispatchEvent(new MouseEvent('click', opts));
     },
 
+    /** Minuscules, sans accents ni tirets : « Fenêtre pop-up » -> « fenetre pop up ». */
+    norm(s) {
+      return String(s || '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .replace(/[-_‐-―]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    },
+
+    /** Attend qu'une condition renvoie une valeur (ou null après le délai). */
+    waitFor(test, timeoutMs, stepMs) {
+      const end = Date.now() + timeoutMs;
+      return new Promise((resolve) => {
+        (function tick() {
+          let value = null;
+          try {
+            value = test();
+          } catch (err) {
+            value = null;
+          }
+          if (value) return resolve(value);
+          if (Date.now() > end) return resolve(null);
+          setTimeout(tick, stepMs || 100);
+        })();
+      });
+    },
+
     lang() {
       return html.getAttribute('lang') || navigator.language || 'fr';
     },
 
     log(...args) {
       console.debug('[Gmail Lisible]', ...args);
+    },
+
+    // ---------- Conversation affichée ----------
+
+    threadScope(list) {
+      return list.closest('.a98.iY, .if, .PeIF1d, .Bu, [role="main"]');
+    },
+
+    /** La liste des messages de la conversation affichée (avec un sujet h2.hP à côté). */
+    visibleThreadList() {
+      for (const list of document.querySelectorAll('[role="list"]')) {
+        if (!list.querySelector(MESSAGE) || !GL.isVisible(list)) continue;
+        const scope = GL.threadScope(list);
+        if (scope && scope.querySelector('h2.hP')) return list;
+      }
+      return null;
+    },
+
+    /** Identifiant de la conversation affichée (change quand on en ouvre une autre). */
+    threadKey(list) {
+      const scope = list && GL.threadScope(list);
+      const subject = scope && scope.querySelector('h2.hP');
+      const id = subject
+        ? subject.getAttribute('data-thread-perm-id') ||
+          subject.getAttribute('data-legacy-thread-id') ||
+          subject.textContent
+        : '';
+      return location.hash.split('?')[0] + '|' + id;
+    },
+
+    /** Un brouillon dans la conversation (« Brouillon » en rouge à la place de l'expéditeur). */
+    isDraftMessage(msg) {
+      if (msg.querySelector('.boq')) return true;
+      const start = GL.norm(msg.textContent.slice(0, 80));
+      if (DRAFT_WORDS.some((w) => start.startsWith(w))) return true;
+      for (const el of msg.querySelectorAll('font, span, div')) {
+        if (el.childElementCount) continue;
+        const t = GL.norm(el.textContent);
+        if (t && t.length < 20 && DRAFT_WORDS.includes(t.replace(/s$/, ''))) return true;
+      }
+      return false;
+    },
+
+    // ---------- Défilement ----------
+
+    findScroller(el) {
+      for (let p = el && el.parentElement; p && p !== document.body && p !== html; p = p.parentElement) {
+        const oy = getComputedStyle(p).overflowY;
+        if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && p.scrollHeight > p.clientHeight + 1) return p;
+      }
+      return document.scrollingElement || html;
+    },
+
+    atBottom(sc) {
+      return sc.scrollHeight - sc.scrollTop - sc.clientHeight <= 4;
     },
   };
   globalThis.GL = GL;
@@ -121,12 +210,27 @@
     return n.nodeType === 1 && n.classList.contains('glx-own');
   }
 
+  // Vérifications express, juste après chaque changement de la page et avant
+  // l'affichage (ex. déplier une conversation sans qu'on la voie repliée).
+  function runQuick() {
+    if (!ready) return;
+    for (const f of features) {
+      if (!f.quick) continue;
+      try {
+        f.quick(GL.settings);
+      } catch (err) {
+        console.warn('[Gmail Lisible] ' + f.name + ' :', err);
+      }
+    }
+  }
+
   function startObserver() {
     const observer = new MutationObserver((records) => {
       for (const r of records) {
         const nodes = [...r.addedNodes, ...r.removedNodes];
         if (nodes.length && nodes.every(isOwnNode)) continue;
         if (r.target.nodeType === 1 && r.target.closest && r.target.closest('.glx-own')) continue;
+        runQuick();
         GL.schedule();
         return;
       }
