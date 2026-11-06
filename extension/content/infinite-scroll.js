@@ -66,30 +66,88 @@
     return tbody ? listScroller(tbody) : null;
   };
   GL.listPager = (dir) => pager(dir);
-  GL.listCounter = () => readCounter();
+  GL.listCounter = () => {
+    const lists = visibleLists();
+    const root = lists.length > 1 && sectionOf(lists[lists.length - 1]);
+    return (root && readCounter(root)) || readCounter();
+  };
 
   // ---------- Liste affichée ----------
 
   function visibleList() {
-    const seen = new Set();
+    const lists = visibleLists();
+    return lists.length ? lists[lists.length - 1] : null;
+  }
+
+  /** Toutes les listes affichées, dans l'ordre de la page. */
+  function visibleLists() {
+    const out = [];
     for (const row of document.querySelectorAll('tr.zA')) {
       const tbody = row.parentElement;
-      if (!tbody || seen.has(tbody)) continue;
-      seen.add(tbody);
-      if (GL.isVisible(tbody)) return tbody;
+      if (tbody && !out.includes(tbody) && GL.isVisible(tbody)) out.push(tbody);
     }
-    return null;
+    return out;
+  }
+
+  /** Section de la boîte (« Messages suivis », « Autres messages »…) qui contient une liste. */
+  function sectionOf(tbody) {
+    return tbody.closest('[role="tabpanel"], .ae4');
+  }
+
+  /** Hors des lignes d'e-mails (en-tête de section, barre d'outils). */
+  function outsideRows(el) {
+    return !el.closest('tr.zA, .Cp, .glx-own');
+  }
+
+  function counterIn(el) {
+    if (el.childElementCount > 4 || !GL.isVisible(el)) return null;
+    const m = el.textContent.match(COUNTER_RE);
+    if (!m) return null;
+    const num = (v) => (/^\D+$/.test(v) ? Infinity : parseInt(v.replace(/\D/g, ''), 10));
+    return { from: num(m[1]), to: num(m[2]), total: num(m[3]), el };
   }
 
   /** Compteur de Gmail « 1–50 sur 1 234 » : { from, to, total }. */
-  function readCounter() {
-    const num = (v) => (/^\D+$/.test(v) ? Infinity : parseInt(v.replace(/\D/g, ''), 10));
-    for (const el of document.querySelectorAll('[gh="tm"] span, [gh="tm"] [role="button"], .Dj, .amH')) {
-      if (el.childElementCount > 4 || !GL.isVisible(el)) continue;
-      const m = el.textContent.match(COUNTER_RE);
-      if (m) return { from: num(m[1]), to: num(m[2]), total: num(m[3]) };
+  function readCounter(root) {
+    if (!root) {
+      for (const el of document.querySelectorAll('[gh="tm"] span, [gh="tm"] [role="button"], .Dj, .amH')) {
+        const c = counterIn(el);
+        if (c) return c;
+      }
+      return null;
     }
+    // Dans une section : l'élément le plus petit qui contient le compteur.
+    let best = null;
+    for (const el of root.querySelectorAll('span, div')) {
+      if (!outsideRows(el)) continue;
+      const c = counterIn(el);
+      if (c && (!best || el.textContent.length <= best.el.textContent.length)) best = c;
+    }
+    return best;
+  }
+
+  /** Libellé de bouton « page suivante » (dir 1) ou « précédente » (dir -1), au sens large. */
+  function looseLabel(label, dir) {
+    if (dir > 0) return /ancien|suivant|older|next|altere|antigu|ouder/.test(label);
+    return /recent|precedent|newer|previous|neuere|nieuwer/.test(label) && !/actualiser|refresh/.test(label);
+  }
+
+  /** Boutons de page d'une section de la boîte (en-tête de la section). */
+  function sectionPager(root, dir, counter) {
+    const buttons = [...root.querySelectorAll('[role="button"], button')].filter(outsideRows);
+    for (const b of buttons) {
+      const label = GL.norm(b.getAttribute('aria-label') || b.getAttribute('data-tooltip') || b.getAttribute('title'));
+      if (label && looseLabel(label, dir)) return { button: b };
+    }
+    // Boutons sans libellé : les deux qui suivent le compteur (‹ puis ›).
+    if (!counter) return null;
+    const after = buttons.filter((b) => counter.el.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING && !b.hasAttribute('aria-haspopup') && !b.hasAttribute('aria-expanded'));
+    if (after.length >= 2) return { button: dir > 0 ? after[1] : after[0] };
     return null;
+  }
+
+  function disabled(b) {
+    return b.getAttribute('aria-disabled') === 'true' || b.classList.contains('T-I-JE') || b.hasAttribute('disabled');
   }
 
   /** Adresse de la page voisine : #inbox -> #inbox/p2, #label/X/p3 -> #label/X/p2… */
@@ -103,6 +161,22 @@
 
   /** Comment aller à la page suivante / précédente (bouton de Gmail, sinon adresse). */
   function pager(dir) {
+    // Boîte découpée en sections : chaque section a son propre compteur et ses flèches.
+    // On part de la section du bas (c'est elle qui a plusieurs pages).
+    const sections = [];
+    for (const tbody of visibleLists().reverse()) {
+      const root = sectionOf(tbody);
+      if (root && !sections.includes(root)) sections.push(root);
+    }
+    if (sections.length > 1) {
+      for (const root of sections) {
+        const c = readCounter(root);
+        if (c && (dir > 0 ? !(c.to < c.total) : !(c.from > 1))) continue; // pas d'autre page ici
+        const how = sectionPager(root, dir, c);
+        if (how && !disabled(how.button)) return { button: how.button, section: root };
+      }
+    }
+
     const words = dir > 0 ? OLDER : NEWER;
     const all = [...document.querySelectorAll('[role="button"][aria-label], [role="button"][data-tooltip], button[aria-label]')];
     // Les boutons de la barre de la liste d'abord ; jamais ceux d'une conversation ouverte.
@@ -110,7 +184,7 @@
     for (const b of all) {
       const label = GL.norm(b.getAttribute('aria-label') || b.getAttribute('data-tooltip'));
       if (!words.includes(label) || !GL.isVisible(b) || b.closest('.a98.iY, .if, .PeIF1d, .glx-own')) continue;
-      if (b.getAttribute('aria-disabled') === 'true' || b.classList.contains('T-I-JE')) return null; // première / dernière page
+      if (disabled(b)) return null; // première / dernière page
       return { button: b, hash: pageHash(dir) };
     }
     const c = readCounter();
@@ -179,7 +253,12 @@
       const sc = tbody ? listScroller(tbody) : scroller;
       // En remontant, on arrive en bas de la page précédente (continuité).
       requestAnimationFrame(() => {
-        sc.scrollTop = dir > 0 ? 0 : sc.scrollHeight;
+        if (dir > 0 && how.section && how.section.isConnected) {
+          // Boîte en sections : on montre le haut de la section qui a changé de page.
+          sc.scrollTop += how.section.getBoundingClientRect().top - (sc === document.scrollingElement ? 0 : sc.getBoundingClientRect().top);
+        } else {
+          sc.scrollTop = dir > 0 ? 0 : sc.scrollHeight;
+        }
       });
       note('page changée (' + (dir > 0 ? 'plus anciens' : 'plus récents') + ')');
     } else {

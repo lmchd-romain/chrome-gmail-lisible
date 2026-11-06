@@ -529,6 +529,21 @@ async function main() {
     await plain.close();
   });
 
+  await step('défilement continu dans une boîte en sections (flèches de la section du bas)', async () => {
+    const sec = await openGmail('https://mail.google.com/mail/u/0/inbox?sections=1#inbox');
+    await sec.bringToFront();
+    await sec.waitForSelector('.glx-day-sep');
+    await sec.mouse.move(800, 500);
+    await scrollTo(sec, 'bottom');
+    await sec.waitForTimeout(100);
+    for (let i = 0; i < 10 && (await sec.evaluate(() => window.__fake.page)) === 1; i++) {
+      await sec.mouse.wheel(0, 120);
+      await sec.waitForTimeout(90);
+    }
+    await sec.waitForFunction(() => window.__fake.page === 2, null, { timeout: 4000 });
+    await sec.close();
+  });
+
   await step('diagnostic copié, sans contenu personnel', async () => {
     await popup.evaluate(() => {
       navigator.clipboard.writeText = async (t) => {

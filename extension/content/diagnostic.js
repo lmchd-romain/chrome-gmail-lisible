@@ -212,6 +212,19 @@
         tree(rows[0], 3, 12, lines, 2);
       }
     }
+    // En-têtes de sections (titre, compteur, flèches), y compris ce qui est caché.
+    const roots = new Set([...bodies].map((b) => b && b.closest('[role="tabpanel"], .ae4')).filter(Boolean));
+    let n = 0;
+    for (const root of roots) {
+      if (n++ >= 4) break;
+      lines.push('\nEn-tête de section ' + n + ' :');
+      const before = lines.length;
+      for (const child of root.children) {
+        if (child.querySelector('tr.zA') || child.matches('.Cp')) continue;
+        tree(child, 7, 10, lines, 1);
+      }
+      if (lines.length === before && root.querySelector('.Wg')) tree(root.querySelector('.Wg'), 7, 10, lines, 1);
+    }
     lines.push('\nBarres d’outils visibles [gh=tm] :');
     for (const t of document.querySelectorAll('[gh="tm"]')) {
       if (!GL.isVisible(t)) continue;

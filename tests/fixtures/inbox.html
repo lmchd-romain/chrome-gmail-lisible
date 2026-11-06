@@ -128,6 +128,15 @@
       b.removeAttribute('data-tooltip');
     }
   }
+  // Boîte en sections (comme la boîte « Prioritaires ») : pas de flèches dans la barre,
+  // chaque section a son compteur et ses flèches (ici sans libellé) dans son en-tête.
+  if (params.has('sections')) {
+    document.getElementById('toolbar').replaceChildren();
+    const head0 = document.querySelector('#starred-section .Wg');
+    head0.insertAdjacentHTML('beforeend', '<div class="aqJ"><span class="Dj"><span>1</span>–<span>3</span> sur <span>3</span></span><div role="button" aria-disabled="true">‹</div><div role="button" aria-disabled="true">›</div></div>');
+    const head1 = document.querySelector('#rest-section .Wg');
+    head1.insertAdjacentHTML('beforeend', '<div class="aqJ"><div role="button" aria-haspopup="true" aria-label="Options de section">⋮</div><span class="Dj" id="counter"><span>1</span>–<span>10</span> sur <span>20</span></span><div role="button" id="newer" aria-disabled="true">‹</div><div role="button" id="older">›</div></div>');
+  }
   function render() {
     const n = /\/p2$/.test(location.hash) ? 2 : 1;
     if (n === window.__fake.page) return;
