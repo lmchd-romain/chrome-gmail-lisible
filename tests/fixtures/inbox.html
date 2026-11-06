@@ -119,44 +119,8 @@
     makeRow(1, 7, 'Section 2 — hier'),
   ]);
 
-  // Pagination de Gmail : les boutons changent l'adresse (#inbox/p2), puis la liste est remplacée.
-  const params = new URLSearchParams(location.search);
-  if (params.has('nolabels')) {
-    for (const id of ['older', 'newer']) {
-      const b = document.getElementById(id);
-      b.removeAttribute('aria-label');
-      b.removeAttribute('data-tooltip');
-    }
-  }
-  // Boîte en sections (comme la vraie boîte de réception découpée « Messages suivis » /
-  // « Autres messages ») : pas de flèches dans la barre ; le compteur de chaque section
-  // est un bouton « Afficher plus de messages ».
-  if (params.has('sections')) {
-    document.getElementById('toolbar').replaceChildren();
-    const head = (n, from, to, total, id) => `<div class="chp5lb"><div class="Wm" role="button" ${id ? 'id="older"' : ''} aria-label="Afficher plus de messages" data-tooltip="Afficher plus de messages"><span class="Di"><div class="J-J5-Ji amH"><span class="Dj" ${id ? 'id="counter"' : ''}><span>${from}</span>–<span>${to}</span> sur <span>${total}</span></span></div></span></div><div class="aAE qi J-J5-Ji J-JN-M-I" role="button" aria-label="Options relatives aux sections de la boîte de réception" aria-expanded="false"></div><div class="Ta J-M" style="display:none"></div></div>`;
-    document.querySelector('#starred-section .Wg').insertAdjacentHTML('beforeend', head(0, 1, 3, 3));
-    document.querySelector('#rest-section .Wg').insertAdjacentHTML('beforeend', head(1, 1, 10, 20, true) + '<div id="newer" style="display:none"></div>');
-  }
-  function render() {
-    const n = /\/p2$/.test(location.hash) ? 2 : 1;
-    if (n === window.__fake.page) return;
-    main.replaceChildren(...(n === 2 ? page2() : page1()));
-    document.getElementById('older').setAttribute('aria-disabled', String(n === 2));
-    document.getElementById('newer').setAttribute('aria-disabled', String(n === 1));
-    document.getElementById('counter').textContent = n === 2 ? '11–20 sur 20' : '1–10 sur 20';
-    document.getElementById('scroller').scrollTop = 0;
-    window.__fake.page = n;
-  }
-  window.addEventListener('hashchange', () => setTimeout(render, 150));
-  document.getElementById('older').addEventListener('click', (e) => {
-    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') location.hash = '#inbox/p2';
-  });
-  document.getElementById('newer').addEventListener('click', (e) => {
-    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') location.hash = '#inbox';
-  });
 
   window.__fake = {
-    page: 1,
     addNewMail() {
       main.insertBefore(makeRow(0, 23, 'Nouveau message', { unread: true }), main.firstChild);
     },

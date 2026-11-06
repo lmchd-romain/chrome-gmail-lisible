@@ -15,7 +15,6 @@ Nobody can open the owner's Gmail from here: when real Gmail behaves differently
   - `content/reply-popout.js` — clicks Gmail's own pop-out button when scrolling up; at the bottom closes the popup (Gmail saves a draft) and reopens the draft inline. Repeats indefinitely: inline reply = any visible editor in the thread outside popups (a reopened draft may have no `.ip.adB`), pop-out button searched in the reply, its `.adn` and list item; popups detected as « newly visible » (Gmail may reuse a hidden compose window). Problems go to `GL.trace` → diagnostic « Journal ».
   - `content/attachments.js` — own attachment bar (on top / compact) + conversation summary; actions click Gmail's hidden native card buttons.
   - `content/day-separators.js` — date separators (skips the « Messages suivis » section).
-  - `content/infinite-scroll.js` — overscroll at list bottom/top clicks « Plus anciens » / « Plus récents »; fallback: page URL `#…/pN` guarded by the « 1–50 sur N » counter.
   - `content/diagnostic.js` — privacy-safe DOM report requested by the popup.
   - `content/dates.js` — pure date parsing/grouping (also required by Node tests).
   - `popup/` — settings UI (also used as options page) + diagnostic button.
@@ -27,7 +26,10 @@ Nobody can open the owner's Gmail from here: when real Gmail behaves differently
 - Body `div.ii.gt` > `.a3s`. Trimmed-content button wrappers `.ajU`/`.ajV`/`.adm`, button `.ajR` (also in compose); hidden content `.h5`/`.adL`.
 - Attachments: area `div.hq` (toolbar `.ho`), cards `.aQH > span.aZo[download_url="mime:name:url"]`, link `a.aQy`, name `.aV3`, size `.aYp span`, icon `img.aSM`, thumbnail `img.aQG`, hover buttons in `.aQw`.
 - Inline reply: `.ip` gets class `adB` when open; compose root `.M9`; editor `[g_editable=true]`. Popup composes live in `.AD`/`[role=dialog]`; title-bar buttons in `.Hm` (`.Hl` minimize, `.Hq` fullscreen, `.Ha` save & close). Main scroll container `div.Tm.aeJ`. Bottom reply buttons `.amn` (`.bkH` reply, `.bkG` reply all, `.bkI` forward).
-- Thread list rows `tr.zA` in `div.Cp table > tbody`; date in `td.xW > span[title]` (vertical split: `td.yf.apt > div.apm > span[title]`); starred = `.T-KT:not(.aXw)`; section titles `.Wg h3.Wr .Wn`; list toolbar `[gh=tm]` with pager buttons aria-label « Plus récents » / « Plus anciens ». Separators are `div.glx-day-sep` (display: table-row) with a `td[colspan]`, so `tbody.rows` is unchanged.
+- Thread list rows `tr.zA` in `div.Cp table > tbody`; date in `td.xW > span[title]` (vertical split: `td.yf.apt > div.apm > span[title]`); starred = `.T-KT:not(.aXw)`; section titles `.Wg h3.Wr .Wn`; list toolbar `[gh=tm]` with pager buttons aria-label « Plus récents » / « Plus anciens ». Owner's inbox is sectioned (« Messages suivis » / « Autres messages », sections `div.ae4[role=tabpanel]`): no pager in `[gh=tm]`; each section's counter `.Dj` sits in a `div.Wm[role=button]` « Afficher plus de messages ». Separators are `div.glx-day-sep` (display: table-row) with a `td[colspan]`, so `tbody.rows` is unchanged.
+
+## Removed
+- Continuous scroll (page turn on overscroll) was removed at the owner's request: they wanted e-mails appended below the list, which Gmail cannot do (pages of max 100); not worth a hidden-iframe hack.
 
 ## Rules
 - Never move Gmail's DOM nodes; only add classes/CSS or insert our own `.glx-own` elements.

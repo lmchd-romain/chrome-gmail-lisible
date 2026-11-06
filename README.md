@@ -21,7 +21,6 @@ Extension Chrome qui rend Gmail plus lisible.
 
 **Dans la boîte de réception** (et les libellés, recherches…)
 
-- **Défilement continu** : arrivé en bas de la liste, continuez à faire défiler, et la page suivante s'affiche toute seule. Tout en haut, continuez vers le haut pour revenir aux e-mails plus récents. (Gmail sur ordinateur n'a pas de bouton « Afficher plus » : seulement les flèches ‹ › et 100 e-mails par page au maximum.)
 - **Séparateurs de dates** entre les e-mails, sauf dans la section « Messages suivis ». Deux modes au choix :
   - *Chaque jour* : « Aujourd'hui », « Hier », « 04/11 », « 03/11 »…
   - *Regrouper* : « Aujourd'hui », « Hier », « Cette semaine », « Semaine dernière », « Octobre »…
@@ -48,7 +47,7 @@ Vos réglages sont conservés.
 
 ## Bon à savoir
 
-- **Page de 100 e-mails** : Gmail affiche 50 e-mails par page. Pour changer moins souvent de page avec le défilement continu : Gmail → ⚙️ → *Voir tous les paramètres* → *Général* → *Taille maximale de la page* → **100** → *Enregistrer*. Gmail ne permet pas d'ajouter des e-mails à une liste déjà affichée : l'extension passe donc à la page suivante automatiquement.
+- **Page de 100 e-mails** : Gmail affiche 50 e-mails par page. Pour en voir plus d'un coup : Gmail → ⚙️ → *Voir tous les paramètres* → *Général* → *Taille maximale de la page* → **100** (maximum permis par Gmail) → *Enregistrer*.
 - L'extension ne fonctionne que sur `mail.google.com`. Elle n'envoie aucune donnée nulle part : tout se passe dans votre navigateur. Elle demande seulement le droit d'enregistrer vos réglages et de copier le diagnostic.
 - Contenu abrégé masqué : pour revoir exceptionnellement un texte cité, désactivez le réglage le temps de le lire.
 - **Un souci ?** Gmail modifie parfois sa page. Ouvrez la page Gmail concernée, cliquez sur l'icône de l'extension, puis **Copier un diagnostic**, et collez le résultat dans la discussion. Le diagnostic décrit la structure de la page, sans le contenu de vos e-mails.

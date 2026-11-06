@@ -488,7 +488,6 @@ async function main() {
       attachmentsOnTop: true,
       attachmentsCompact: true,
       attachmentsSummary: true,
-      infiniteScroll: true,
       daySeparators: true,
     });
     assert.equal(state.mode, 'day');
@@ -512,63 +511,6 @@ async function main() {
     await inbox.waitForSelector('.glx-day-sep');
   });
 
-  await step('défilement continu : page suivante puis précédente', async () => {
-    await inbox.bringToFront();
-    await inbox.mouse.move(800, 500);
-    await scrollTo(inbox, 'bottom');
-    await inbox.waitForTimeout(100);
-    for (let i = 0; i < 10 && (await inbox.evaluate(() => window.__fake.page)) === 1; i++) {
-      await inbox.mouse.wheel(0, 120);
-      await inbox.waitForTimeout(90);
-    }
-    await inbox.waitForFunction(() => window.__fake.page === 2, null, { timeout: 3000 });
-    await inbox.waitForTimeout(300);
-    assert.equal(await inbox.evaluate(() => document.getElementById('scroller').scrollTop), 0, 'page suivante affichée depuis le haut');
-    await inbox.waitForTimeout(1600);
-    for (let i = 0; i < 10 && (await inbox.evaluate(() => window.__fake.page)) === 2; i++) {
-      await inbox.mouse.wheel(0, -120);
-      await inbox.waitForTimeout(90);
-    }
-    await inbox.waitForFunction(() => window.__fake.page === 1, null, { timeout: 3000 });
-    await inbox.waitForTimeout(300);
-    // (les derniers crans de molette continuent de faire remonter un peu : c'est voulu)
-    const fromBottom = await inbox.evaluate(() => {
-      const s = document.getElementById('scroller');
-      return s.scrollHeight - s.scrollTop - s.clientHeight;
-    });
-    assert.ok(fromBottom <= 400, 'en remontant, on arrive en bas de la page précédente (' + fromBottom + ' px du bas)');
-  });
-
-  await step('défilement continu sans libellés de boutons (adresse #inbox/p2)', async () => {
-    const plain = await openGmail('https://mail.google.com/mail/u/0/inbox?nolabels=1#inbox');
-    await plain.bringToFront();
-    await plain.waitForSelector('.glx-day-sep');
-    await plain.mouse.move(800, 500);
-    await scrollTo(plain, 'bottom');
-    await plain.waitForTimeout(100);
-    for (let i = 0; i < 10 && (await plain.evaluate(() => window.__fake.page)) === 1; i++) {
-      await plain.mouse.wheel(0, 120);
-      await plain.waitForTimeout(90);
-    }
-    await plain.waitForFunction(() => window.__fake.page === 2 && location.hash === '#inbox/p2', null, { timeout: 4000 });
-    await plain.close();
-  });
-
-  await step('défilement continu dans une boîte en sections (flèches de la section du bas)', async () => {
-    const sec = await openGmail('https://mail.google.com/mail/u/0/inbox?sections=1#inbox');
-    await sec.bringToFront();
-    await sec.waitForSelector('.glx-day-sep');
-    await sec.mouse.move(800, 500);
-    await scrollTo(sec, 'bottom');
-    await sec.waitForTimeout(100);
-    for (let i = 0; i < 10 && (await sec.evaluate(() => window.__fake.page)) === 1; i++) {
-      await sec.mouse.wheel(0, 120);
-      await sec.waitForTimeout(90);
-    }
-    await sec.waitForFunction(() => window.__fake.page === 2, null, { timeout: 4000 });
-    await sec.close();
-  });
-
   await step('diagnostic copié, sans contenu personnel', async () => {
     await popup.evaluate(() => {
       navigator.clipboard.writeText = async (t) => {
@@ -580,7 +522,6 @@ async function main() {
     const text = await popup.evaluate(() => window.__copied);
     assert.ok(text.startsWith('# Diagnostic Gmail Lisible'), text.slice(0, 80));
     assert.ok(text.includes('Listes d’e-mails') && text.includes('Plus anciens'), 'structure et boutons de Gmail inclus');
-    assert.ok(text.includes('## Défilement continu') && text.includes('zone qui défile : div.Tm.aeJ') && /dernier essai .*: /.test(text), 'état du défilement continu inclus');
     for (const secret of ['Devis atelier', 'x@example.com', 'Commande bois']) {
       assert.ok(!text.includes(secret), 'contenu personnel présent : ' + secret);
     }
