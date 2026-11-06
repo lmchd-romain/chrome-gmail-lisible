@@ -1,5 +1,19 @@
 /* Gmail Lisible — styles injectés dans Gmail. */
 
+/* ---------- Couleurs suivant le thème de Gmail (clair, sombre, image) ---------- */
+/* Les gris sont tirés de la couleur du texte : ils suivent tous les thèmes. */
+html {
+  --glx-accent: #0b57d0;
+}
+
+html[data-glx-dark] {
+  --glx-accent: #a8c7fa;
+}
+
+html[data-glx-dark] :is(.glx-settings, .glx-att-bar, .glx-att-summary) {
+  color-scheme: dark;
+}
+
 /* ---------- Bouton « Afficher le contenu abrégé » (les trois petits points « ••• ») ---------- */
 /* Dans les messages ET dans la zone où vous écrivez votre réponse. */
 html[data-glx-hide-trimmed] :is(.ajU, .ajV, .ajR),
@@ -84,9 +98,9 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 
 .glx-att-bar,
 .glx-att-summary {
-  --glx-line: rgba(128, 128, 128, 0.32);
-  --glx-hover: rgba(128, 128, 128, 0.14);
-  --glx-muted: rgba(128, 128, 128, 0.95);
+  --glx-line: color-mix(in srgb, currentColor 24%, transparent);
+  --glx-hover: color-mix(in srgb, currentColor 10%, transparent);
+  --glx-muted: color-mix(in srgb, currentColor 68%, transparent);
   color: inherit;
   font: 400 13px/18px 'Google Sans', Roboto, 'Segoe UI', Arial, sans-serif;
 }
@@ -111,7 +125,7 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 .glx-att-all {
   all: unset;
   cursor: pointer;
-  color: #0b57d0;
+  color: var(--glx-accent);
   font-weight: 500;
 }
 
@@ -166,7 +180,7 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 .glx-att-thumb:focus-visible,
 .glx-att-summary-head:focus-visible,
 .glx-att-more:focus-visible {
-  outline: 2px solid #0b57d0;
+  outline: 2px solid var(--glx-accent);
   outline-offset: 1px;
 }
 
@@ -326,7 +340,7 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 .glx-att-more {
   all: unset;
   margin: 4px 0 0 8px;
-  color: #0b57d0;
+  color: var(--glx-accent);
   font-weight: 500;
   cursor: pointer;
 }
@@ -342,7 +356,7 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 @keyframes glx-flash {
   0%,
   35% {
-    box-shadow: inset 0 0 0 2px #0b57d0;
+    box-shadow: inset 0 0 0 2px var(--glx-accent);
   }
   100% {
     box-shadow: inset 0 0 0 2px transparent;
@@ -385,7 +399,7 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 .glx-set-table td {
   vertical-align: top;
   padding: 14px 0;
-  border-bottom: 1px solid rgba(100, 121, 143, 0.2);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
 }
 
 .glx-set-table td.glx-set-label {
@@ -405,7 +419,7 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 .glx-set-item input {
   flex: none;
   margin: 2px 0 0;
-  accent-color: #0b57d0;
+  accent-color: var(--glx-accent);
   cursor: pointer;
 }
 

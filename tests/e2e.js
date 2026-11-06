@@ -214,6 +214,25 @@ async function main() {
     await thread.waitForSelector('.glx-att-summary');
   });
 
+  await step('thème sombre de Gmail : couleurs adaptées, puis retour au clair', async () => {
+    const accent = () => getComputedStyle(document.querySelector('.glx-att-more, .glx-att-all') || document.documentElement).getPropertyValue('--glx-accent').trim();
+    assert.equal(await thread.evaluate(accent), '#0b57d0', 'accent clair par défaut');
+    // Gmail change de thème en remplaçant ses feuilles de style.
+    await thread.evaluate(() => {
+      const st = document.createElement('style');
+      st.id = 'fake-dark';
+      st.textContent = '[role="main"] { color: #e3e3e3; background: #1f1f1f; }';
+      document.head.appendChild(st);
+    });
+    await thread.waitForFunction(() => document.documentElement.hasAttribute('data-glx-dark'), null, { timeout: 3000 });
+    assert.equal(await thread.evaluate(accent), '#a8c7fa', 'accent clair sur fond sombre');
+    const line = await thread.evaluate(() => getComputedStyle(document.querySelector('.glx-att-summary')).borderTopColor);
+    assert.ok(/0\.890196/.test(line), 'bordure tirée du texte clair : ' + line);
+    await shot(thread, 'theme-sombre');
+    await thread.evaluate(() => document.getElementById('fake-dark').remove());
+    await thread.waitForFunction(() => !document.documentElement.hasAttribute('data-glx-dark'), null, { timeout: 3000 });
+  });
+
   await step('réponse : « ••• » masqué aussi pendant la rédaction', async () => {
     await thread.click('#reply-btn');
     await thread.waitForSelector('#compose');

@@ -9,6 +9,7 @@ Nobody can open the owner's Gmail from here: when real Gmail behaves differently
   - `manifest.json` — `key` field pins the extension ID (`minkcefmamppmchimjoecjdehmhbmojn`) so re-downloads keep settings.
   - `shared/defaults.js` — settings keys and defaults (popup + content scripts).
   - `content/core.js` — settings (chrome.storage.sync), MutationObserver (throttled `update`, synchronous `quick` hook), shared helpers (`GL.visibleThreadList`, `GL.threadKey`, `GL.isDraftMessage`, `GL.waitFor`, `GL.click`…). Features call `GL.register({name, update, quick?})`.
+  - Themes: `core.js` sets `html[data-glx-dark]` when `[role=main]` text is light (dark / dark-image Gmail themes); CSS uses `--glx-accent` (blue #0b57d0 / #a8c7fa) and greys from `color-mix(currentColor …)`, so never hard-code colors in `content.css`.
   - `content/expand.js` — auto-expand (expand-all button, fallback clicks); `quick` path + `.glx-expanding` veil so collapsed messages never paint.
   - `content/history.js` — per message, quote units (Gmail-trimmed `.h5/.adL`, `.gmail_quote`, `blockquote[type=cite]` + attribution line, Outlook « De : / Envoyé : » block + following siblings) are compared (6-word shingles) with the messages ABOVE: redundant → `.glx-quote-hidden`; Gmail-trimmed but never received → `.glx-quote-show` (revealed). Also dedupes identical signatures within one body (`-- ` regions, signature classes, signature-like tables): keeps the least nested one.
   - `content/trimmed.js` — hides Apple Mail `<file.ext>` placeholders (line-based, robust to split text nodes / `<wbr>`).

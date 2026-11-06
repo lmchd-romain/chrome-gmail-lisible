@@ -167,6 +167,17 @@
     toggleAttr('data-glx-hide-sig', s.hideRepeatedSignatures);
     // Ce que Gmail cache derrière « ••• » sans que vous l'ayez jamais reçu est réaffiché.
     toggleAttr('data-glx-reveal', s.hideTrimmedButton || s.hideQuotedHistory);
+    toggleAttr('data-glx-dark', isDarkTheme());
+  }
+
+  // Thème de Gmail : sombre si le texte de la page est clair (thèmes sombres ou à image sombre).
+  function isDarkTheme() {
+    const el = document.querySelector('[role="main"]') || document.body;
+    if (!el) return false;
+    const m = getComputedStyle(el).color.match(/[\d.]+/g);
+    if (!m || m.length < 3) return false;
+    const [r, g, b] = m.map(Number);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 140;
   }
 
   function toggleAttr(name, on) {
