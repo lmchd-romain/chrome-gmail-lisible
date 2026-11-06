@@ -25,7 +25,7 @@ Extension Chrome qui rend Gmail plus lisible.
   - *Chaque jour* : « Aujourd'hui », « Hier », « 04/11 », « 03/11 »…
   - *Regrouper* : « Aujourd'hui », « Hier », « Cette semaine », « Semaine dernière », « Octobre »…
 
-Chaque fonction se règle en cliquant sur l'icône de l'extension. Les changements s'appliquent tout de suite.
+**Réglages** : dans Gmail, ⚙️ → *Voir tous les paramètres* → onglet **Personnalisation** (ou icône de l'extension → *Ouvrir les réglages*). Chaque fonction s'active ou se désactive, les changements s'appliquent tout de suite.
 
 ## Installation (5 minutes)
 

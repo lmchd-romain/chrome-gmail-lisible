@@ -348,3 +348,83 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
     box-shadow: inset 0 0 0 2px transparent;
   }
 }
+
+/* ---------- Onglet « Personnalisation » des paramètres de Gmail ---------- */
+
+.glx-settings-hidden {
+  display: none !important;
+}
+
+.glx-settings-tab {
+  cursor: pointer;
+}
+
+.glx-settings {
+  padding: 8px 16px 24px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.glx-set-intro,
+.glx-set-foot {
+  margin: 8px 0 16px;
+  opacity: 0.72;
+  font-size: 13px;
+}
+
+.glx-set-foot {
+  margin: 20px 0 0;
+}
+
+.glx-set-table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 900px;
+}
+
+.glx-set-table td {
+  vertical-align: top;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(100, 121, 143, 0.2);
+}
+
+.glx-set-table td.glx-set-label {
+  width: 200px;
+  padding-right: 24px;
+  font-weight: 700;
+}
+
+.glx-set-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.glx-set-item input {
+  flex: none;
+  margin: 2px 0 0;
+  accent-color: #0b57d0;
+  cursor: pointer;
+}
+
+.glx-set-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.glx-set-desc {
+  opacity: 0.72;
+  font-size: 12px;
+}
+
+.glx-set-sub {
+  margin-left: 26px;
+}
+
+.glx-set-off {
+  opacity: 0.45;
+  pointer-events: none;
+}

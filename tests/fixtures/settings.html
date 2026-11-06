@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Faux Gmail — paramètres</title>
+<style>
+  body { margin: 0; font: 14px Arial, sans-serif; background: #f6f8fc; color: #202124; }
+  .Tm.aeJ { position: fixed; top: 48px; left: 256px; right: 56px; bottom: 0; overflow-y: auto; background: #fff; }
+  .dt { padding: 12px 16px 0; font-size: 20px; }
+  .fY { display: flex; flex-wrap: wrap; border-bottom: 1px solid #ddd; padding: 0 8px; }
+  .fY .f1 { padding: 10px 12px; }
+  .fY .f1 a.f0 { color: #444; text-decoration: none; font-weight: 400; }
+  .fY .f1.f2 { border-bottom: 3px solid #d93025; }
+  .fY .f1.f2 a.f0 { color: #d93025; font-weight: 700; }
+  .r4 { padding: 16px; }
+</style>
+</head>
+<body>
+<div class="Tm aeJ" id="scroller">
+  <div role="main">
+    <div class="nH">
+      <div class="dt">Paramètres</div>
+      <div class="nH" id="tabs-host"></div>
+      <div class="nH r4" id="content"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const TABS = [
+    ['general', 'Général'], ['labels', 'Libellés'], ['inbox', 'Boîte de réception'], ['accounts', 'Comptes et importation'],
+    ['filters', 'Filtres et adresses bloquées'], ['fwdandpop', 'Transfert et POP/IMAP'], ['addons', 'Modules complémentaires'],
+    ['chat', 'Chat et Meet'], ['advanced', 'Paramètres avancés'], ['offline', 'Hors connexion'], ['oldthemes', 'Thèmes'],
+  ];
+  window.__fake = { renders: 0 };
+  function render() {
+    const current = (location.hash.split('/')[1] || 'general');
+    // Comme Gmail : la barre d'onglets est reconstruite à chaque changement d'onglet.
+    const host = document.getElementById('tabs-host');
+    host.innerHTML = '';
+    // Deux rangées d'onglets.
+    for (const part of [TABS.slice(0, 6), TABS.slice(6)]) {
+      const row = document.createElement('div');
+      row.className = 'fY';
+      for (const [id, name] of part) {
+        const tab = document.createElement('div');
+        tab.className = 'f1' + (id === current ? ' f2' : '');
+        tab.setAttribute('jsaction', 'click:fake');
+        tab.innerHTML = '<a class="f0 LJOhwe" id="tab-' + id + '" href="' + location.pathname + '#settings/' + id + '">' + name + '</a>';
+        row.appendChild(tab);
+      }
+      host.appendChild(row);
+    }
+    const content = document.getElementById('content');
+    content.innerHTML = '<table><tr><td>Langue :</td><td><select><option>Français</option></select></td></tr>' +
+      '<tr><td>Onglet ' + current + '</td><td><input type="checkbox"> option</td></tr></table>' +
+      '<div><button id="save">Enregistrer les modifications</button></div>';
+    window.__fake.renders++;
+  }
+  window.addEventListener('hashchange', render);
+  render();
+})();
+</script>
+</body>
+</html>

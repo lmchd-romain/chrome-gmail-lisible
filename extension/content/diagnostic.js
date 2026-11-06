@@ -235,6 +235,20 @@
     return section('Listes d’e-mails', lines);
   }
 
+  function settingsPart() {
+    const lines = [];
+    if (!/^#settings/.test(location.hash) || !GL.settingsTabs) return '';
+    const st = GL.settingsTabs();
+    lines.push('onglet Personnalisation : ' + (st.ours ? 'ajouté' : 'absent') + (st.open ? ' (ouvert)' : ''));
+    if (!st.tabs) return section('Paramètres', lines.concat(['barre d’onglets introuvable']));
+    lines.push('onglets : ' + st.tabs.links.length + ' · actif : ' + st.tabs.active);
+    lines.push('contenu : ' + (st.content ? st.content.nodes.length + ' bloc(s) après ' + describe(st.content.anchor) : 'introuvable'));
+    lines.push('\nBarre d’onglets :');
+    lines.push('    > ' + path(st.tabs.root, document.body).split('\n').slice(-5).join('\n'));
+    tree(st.tabs.root, 5, 20, lines);
+    return section('Paramètres', lines);
+  }
+
   function build() {
     const head = [
       '# Diagnostic Gmail Lisible',
@@ -245,7 +259,7 @@
       'réglages : ' + JSON.stringify(GL.settings),
     ];
     let text = head.join('\n');
-    for (const part of [threadPart, composePart, replyPart, listPart]) {
+    for (const part of [settingsPart, threadPart, composePart, replyPart, listPart]) {
       try {
         text += part();
       } catch (err) {

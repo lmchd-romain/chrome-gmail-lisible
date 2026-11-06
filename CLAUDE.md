@@ -15,9 +15,10 @@ Nobody can open the owner's Gmail from here: when real Gmail behaves differently
   - `content/reply-popout.js` — clicks Gmail's own pop-out button when scrolling up (after climbing ≥150 px and the reply <35 % visible); when scrolling down and the reply's former spot (its `.ip` anchor) is visible again, closes the popup — real Gmail then puts the reply back inline itself (fallback: reopen the collapsed draft). Repeats indefinitely: inline reply = any visible editor in the thread outside popups (a reopened draft may have no `.ip.adB`), pop-out button searched in the reply, its `.adn` and list item; popups detected as « newly visible » (Gmail may reuse a hidden compose window). Problems go to `GL.trace` → diagnostic « Journal ».
   - `content/attachments.js` — own attachment bar (on top / compact) + conversation summary; actions click Gmail's hidden native card buttons.
   - `content/day-separators.js` — date separators (skips the « Messages suivis » section).
+  - `content/settings-tab.js` — settings UI: « Personnalisation » tab added to Gmail's settings page (`#settings/…`). Tabs found generically (`a[href$="#settings/x"]`, fallback `[role=tab]`; tab unit = largest ancestor holding one link); our tab = sanitized clone of a Gmail tab (active-tab clone while open; Gmail's active tab gets `.glx-tab-dim` with inactive computed styles). Open: Gmail content after the tab bar gets `.glx-settings-hidden`, our `.glx-settings` panel inserted; hash unchanged; closes on Gmail tab click / hashchange. Popup asks it via message `glx-open-settings` (or `storage.local.glxOpenSettings` for a new tab).
   - `content/diagnostic.js` — privacy-safe DOM report requested by the popup.
   - `content/dates.js` — pure date parsing/grouping (also required by Node tests).
-  - `popup/` — settings UI (also used as options page) + diagnostic button.
+  - `popup/` — « Ouvrir les réglages » button (→ Gmail tab) + diagnostic button (also options page).
 - `tests/` — `dates.test.js` (node:test) and `e2e.js` (Playwright loads the real extension, routes `mail.google.com` to `tests/fixtures/*.html`, which emulate Gmail behaviours).
 - `tools/make-icons.py` — regenerates `extension/icons/`.
 

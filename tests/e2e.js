@@ -52,7 +52,7 @@ async function main() {
 
   await context.route('https://mail.google.com/**', (route) => {
     const url = new URL(route.request().url());
-    const file = url.pathname.includes('inbox') ? 'inbox.html' : url.pathname.includes('history') ? 'history.html' : 'thread.html';
+    const file = url.pathname.includes('inbox') ? 'inbox.html' : url.pathname.includes('history') ? 'history.html' : url.pathname.includes('settings') ? 'settings.html' : 'thread.html';
     route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(FIXTURES, file)) });
   });
 
@@ -494,11 +494,45 @@ async function main() {
     assert.ok(!(await labels(inbox, 'section1')).includes('Hier'), 'plus de « Hier » sans e-mail d’hier');
   });
 
-  await step('popup : réglages par défaut affichés', async () => {
-    await popup.reload();
-    const state = await popup.evaluate(() => ({
-      switches: [...document.querySelectorAll('input[data-key]')].map((i) => [i.dataset.key, i.checked]),
-      mode: document.querySelector('input[name="daySeparatorMode"]:checked').value,
+  // ---------------- Paramètres de Gmail : onglet « Personnalisation » ----------------
+  console.log('\nParamètres de Gmail :');
+  const settings = await openGmail('https://mail.google.com/mail/u/0/settings#settings/general');
+  const tabInfo = () =>
+    settings.evaluate(() => {
+      const ours = document.querySelector('.glx-settings-tab');
+      return {
+        count: document.querySelectorAll('.glx-settings-tab').length,
+        text: ours && ours.textContent.trim(),
+        afterLast: !!ours && ours.previousElementSibling && ours.previousElementSibling.textContent.trim() === 'Thèmes',
+        active: !!ours && ours.classList.contains('f2'),
+        panel: !!document.querySelector('.glx-settings') && getComputedStyle(document.querySelector('.glx-settings')).display !== 'none',
+        gmailContent: getComputedStyle(document.getElementById('content')).display !== 'none',
+        gmailActiveColor: getComputedStyle(document.querySelector('.f1.f2 a')).color,
+      };
+    });
+
+  await step('onglet « Personnalisation » ajouté après le dernier onglet', async () => {
+    await settings.waitForSelector('.glx-settings-tab', { timeout: 3000 });
+    const t = await tabInfo();
+    assert.deepEqual([t.count, t.text, t.afterLast, t.active, t.panel, t.gmailContent], [1, 'Personnalisation', true, false, false, true]);
+    const attrs = await settings.evaluate(() => {
+      const ours = document.querySelector('.glx-settings-tab');
+      return [ours.hasAttribute('jsaction'), !!ours.querySelector('[href]'), !!ours.querySelector('[id]')];
+    });
+    assert.deepEqual(attrs, [false, false, false], 'attributs de Gmail retirés de la copie');
+  });
+
+  await step('clic : nos réglages à la place du contenu de Gmail', async () => {
+    const hash = await settings.evaluate(() => location.hash);
+    await settings.click('.glx-settings-tab');
+    await settings.waitForSelector('.glx-settings', { timeout: 3000 });
+    const t = await tabInfo();
+    assert.deepEqual([t.count, t.active, t.panel, t.gmailContent], [1, true, true, false]);
+    assert.equal(t.gmailActiveColor, 'rgb(68, 68, 68)', 'l’onglet « Général » prend l’aspect inactif');
+    assert.equal(await settings.evaluate(() => location.hash), hash, 'adresse inchangée');
+    const state = await settings.evaluate(() => ({
+      switches: [...document.querySelectorAll('.glx-settings input[data-key]')].map((i) => [i.dataset.key, i.checked]),
+      mode: document.querySelector('.glx-settings input[data-radio]:checked').value,
     }));
     assert.deepEqual(Object.fromEntries(state.switches), {
       autoExpand: true,
@@ -514,27 +548,47 @@ async function main() {
       daySeparators: true,
     });
     assert.equal(state.mode, 'day');
-    await popup.setViewportSize({ width: 360, height: 980 });
-    await shot(popup, 'popup');
+    await shot(settings, 'parametres-personnalisation');
   });
 
   await step('mode « Regrouper » appliqué tout de suite', async () => {
-    await popup.click('input[value="group"] + .mode-body');
+    await settings.click('.glx-settings input[value="group"]');
     const want = expectedLabels('group', [0, 0, 2, 3, 8, 20, 40, 400]);
     await inbox.waitForFunction((w) => JSON.stringify([...document.querySelectorAll('#section1 .glx-day-sep')].map((e) => e.textContent)) === JSON.stringify(w), want, { timeout: 3000 });
     await shot(inbox, 'separateurs-regroupes');
-    await popup.click('input[value="day"] + .mode-body');
+    await settings.click('.glx-settings input[value="day"]');
   });
 
   await step('séparateurs désactivés : tous retirés', async () => {
-    await popup.click('input[data-key="daySeparators"]');
+    await settings.click('.glx-settings input[data-key="daySeparators"]');
     await inbox.waitForFunction(() => !document.querySelector('.glx-day-sep'), null, { timeout: 3000 });
-    assert.equal(await popup.evaluate(() => document.querySelector('input[value="day"]').disabled), true, 'choix du mode grisé');
-    await popup.click('input[data-key="daySeparators"]');
+    assert.equal(await settings.evaluate(() => document.querySelector('.glx-settings input[value="day"]').disabled), true, 'choix du mode grisé');
+    await settings.click('.glx-settings input[data-key="daySeparators"]');
     await inbox.waitForSelector('.glx-day-sep');
   });
 
+  await step('réglage changé ailleurs : onglet mis à jour', async () => {
+    await setOption('autoExpand', false);
+    await settings.waitForFunction(() => !document.querySelector('.glx-settings input[data-key="autoExpand"]').checked, null, { timeout: 3000 });
+    await setOption('autoExpand', true);
+  });
+
+  await step('clic sur un onglet de Gmail : nos réglages se ferment', async () => {
+    await settings.click('#tab-general');
+    await settings.waitForFunction(() => !document.querySelector('.glx-settings'), null, { timeout: 3000 });
+    let t = await tabInfo();
+    assert.deepEqual([t.count, t.active, t.gmailContent], [1, false, true]);
+    assert.equal(t.gmailActiveColor, 'rgb(217, 48, 37)', 'aspect de l’onglet actif rendu');
+    await settings.click('.glx-settings-tab');
+    await settings.click('#tab-labels');
+    await settings.waitForFunction(() => location.hash === '#settings/labels' && !document.querySelector('.glx-settings'), null, { timeout: 3000 });
+    await settings.waitForTimeout(300);
+    t = await tabInfo();
+    assert.deepEqual([t.count, t.active, t.panel, t.gmailContent], [1, false, false, true]);
+  });
+
   await step('diagnostic copié, sans contenu personnel', async () => {
+    await inbox.bringToFront();
     await popup.evaluate(() => {
       navigator.clipboard.writeText = async (t) => {
         window.__copied = t;
@@ -548,6 +602,23 @@ async function main() {
     for (const secret of ['Devis atelier', 'x@example.com', 'Commande bois']) {
       assert.ok(!text.includes(secret), 'contenu personnel présent : ' + secret);
     }
+  });
+
+  await step('icône de l’extension : « Ouvrir les réglages »', async () => {
+    await settings.bringToFront();
+    await popup.reload();
+    await popup.evaluate(() => {
+      window.close = () => {};
+      document.getElementById('open').click();
+    });
+    await settings.waitForFunction(() => !!document.querySelector('.glx-settings'), null, { timeout: 4000 }).catch(() => null);
+    const pages = context.pages().filter((p) => p.url().startsWith('https://mail.google.com'));
+    let opened = 0;
+    for (const p of pages) {
+      await p.waitForFunction(() => /^#settings/.test(location.hash) && !!document.querySelector('.glx-settings'), null, { timeout: 4000 }).then(() => opened++, () => null);
+      if (opened) break;
+    }
+    assert.equal(opened, 1, 'un onglet Gmail affiche « Personnalisation »');
   });
 
   await step('aucune erreur dans la console', async () => {

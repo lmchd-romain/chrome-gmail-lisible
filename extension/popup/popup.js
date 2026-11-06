@@ -1,74 +1,50 @@
-/* Fenêtre de réglages : lit et enregistre les choix dans chrome.storage.sync. */
+/* Fenêtre de l'icône : ouvre l'onglet « Personnalisation » dans Gmail + diagnostic. */
 (function () {
   'use strict';
 
-  const DEFAULTS = globalThis.GL_DEFAULTS;
-  const switches = document.querySelectorAll('input[data-key]');
-  const radios = document.querySelectorAll('input[name="daySeparatorMode"]');
-
-  // Options qui dépendent d'une autre (grisées si celle-ci est coupée).
-  function refreshDependencies() {
-    document.querySelectorAll('[data-depends]').forEach((block) => {
-      const parent = document.querySelector(`input[data-key="${block.dataset.depends}"]`);
-      const on = !!(parent && parent.checked);
-      block.classList.toggle('off', !on);
-      block.querySelectorAll('input').forEach((i) => (i.disabled = !on));
-    });
-  }
-
-  function render(settings) {
-    switches.forEach((input) => {
-      input.checked = !!settings[input.dataset.key];
-    });
-    radios.forEach((r) => {
-      r.checked = r.value === settings.daySeparatorMode;
-    });
-    refreshDependencies();
-    requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('ready')));
-  }
-
-  function save(change) {
-    chrome.storage.sync.set(change);
-  }
-
-  chrome.storage.sync.get(DEFAULTS, render);
-
-  switches.forEach((input) => {
-    input.addEventListener('change', () => {
-      save({ [input.dataset.key]: input.checked });
-      refreshDependencies();
-    });
-  });
-
-  radios.forEach((r) => {
-    r.addEventListener('change', () => {
-      if (r.checked) save({ daySeparatorMode: r.value });
-    });
-  });
+  const GMAIL_SETTINGS = 'https://mail.google.com/mail/u/0/#settings/general';
 
   document.getElementById('version').textContent = 'v' + chrome.runtime.getManifest().version;
 
-  // ---------- Diagnostic ----------
-
-  const diagButton = document.getElementById('diag');
-  const diagStatus = document.getElementById('diag-status');
-  const diagText = document.getElementById('diag-text');
-
-  diagButton.addEventListener('click', async () => {
-    diagStatus.textContent = '…';
-    let text = '';
-    // Onglet actif d'abord (cas normal), sinon le premier onglet Gmail qui répond.
+  /** Envoie un message aux onglets Gmail (l'onglet actif d'abord) ; renvoie le premier qui répond. */
+  async function askGmail(message) {
     const active = await chrome.tabs.query({ active: true, currentWindow: true });
     const others = await chrome.tabs.query({});
     for (const tab of [...active, ...others]) {
       try {
-        const res = await chrome.tabs.sendMessage(tab.id, { type: 'glx-diagnostic' });
-        text = res && res.text;
+        const res = await chrome.tabs.sendMessage(tab.id, message);
+        if (res && res.ok) return { tab, res };
       } catch (err) {
-        text = '';
+        // pas un onglet Gmail
       }
-      if (text) break;
     }
+    return null;
+  }
+
+  // ---------- Ouvrir les réglages ----------
+
+  document.getElementById('open').addEventListener('click', async () => {
+    const found = await askGmail({ type: 'glx-open-settings' });
+    if (found) {
+      await chrome.tabs.update(found.tab.id, { active: true });
+      await chrome.windows.update(found.tab.windowId, { focused: true });
+    } else {
+      // Aucun Gmail ouvert : nouvel onglet, qui ouvrira « Personnalisation » en arrivant.
+      await chrome.storage.local.set({ glxOpenSettings: Date.now() });
+      await chrome.tabs.create({ url: GMAIL_SETTINGS });
+    }
+    window.close();
+  });
+
+  // ---------- Diagnostic ----------
+
+  const diagStatus = document.getElementById('diag-status');
+  const diagText = document.getElementById('diag-text');
+
+  document.getElementById('diag').addEventListener('click', async () => {
+    diagStatus.textContent = '…';
+    const found = await askGmail({ type: 'glx-diagnostic' });
+    const text = found && found.res.text;
     if (!text) {
       diagStatus.textContent = "Ouvrez Gmail dans l'onglet actif, rechargez-le, puis réessayez.";
       return;
