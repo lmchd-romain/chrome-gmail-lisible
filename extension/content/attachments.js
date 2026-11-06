@@ -20,7 +20,7 @@
   const CARD = 'span.aZo, .aQH > span';
   const DL_RE = /telecharger|download|herunterladen|descargar|scarica|baixar|downloaden/;
   const DRIVE_RE = /drive/;
-  const DL_ALL_RE = /^(tout telecharger|download all|alle herunterladen|descargar todo|scarica tutti|baixar todos)/;
+  const DL_ALL_RE = /^(tout telecharger|telecharger toutes|download all|alle herunterladen|descargar todo|scarica tutti|baixar todos)/;
   const SUMMARY_MIN_MESSAGES = 3;
   const SUMMARY_MIN_FILES = 2;
   const SUMMARY_VISIBLE = 6;

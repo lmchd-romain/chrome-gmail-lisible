@@ -182,14 +182,19 @@
       GL.click(close); // croix de Gmail : enregistre le brouillon et ferme la fenêtre
       await GL.waitFor(() => !p.root.isConnected || !GL.isVisible(p.root), 3000);
 
-      // Le brouillon réapparaît dans la conversation : on le rouvre à sa place.
-      const draft = await GL.waitFor(() => {
+      // Souvent Gmail remet lui-même la réponse dans la conversation ; sinon le
+      // brouillon apparaît replié (« Brouillon ») et on le rouvre à sa place.
+      const result = await GL.waitFor(() => {
+        if (findInlineReply()) return { back: true };
         const list = GL.visibleThreadList();
         const items = list ? draftItems(list) : [];
-        return items[items.length - 1] || null;
-      }, content ? 8000 : 1500, 150);
+        return items.length ? { draft: items[items.length - 1] } : null;
+      }, content ? 8000 : 1500, 100);
+      const draft = result && result.draft;
 
-      if (draft) {
+      if (result && result.back) {
+        // rien à faire : Gmail l'a déjà remise en place
+      } else if (draft) {
         GL.click(draft.querySelector('.adf.ads, .adf') || draft);
       } else if (!content) {
         // Réponse vide (Gmail l'a supprimée) : on rouvre une réponse vide.
@@ -207,7 +212,7 @@
       if (sc && isScrollable(sc)) sc.scrollTop = sc.scrollHeight;
     } finally {
       busy = false;
-      cooldownUntil = Date.now() + 1500;
+      cooldownUntil = Date.now() + 800;
     }
   }
 

@@ -60,7 +60,7 @@
         <div class="aQw"></div>
       </span>`).join('');
     const toolbar = files.length > 1
-      ? `<div class="ho"><span class="aVW"><span>${files.length}</span> pièces jointes</span><div class="aZi J-J5-Ji"><div role="button" class="aZh" aria-label="Tout télécharger" data-tooltip="Tout télécharger">⬇</div></div></div>`
+      ? `<div class="eqJbab cZD3Qb"><span class="aVW a5T"><span><span>${files.length} pièces jointes</span></span></span><div class="qHUoUc ASpsEf"><span><button class="pYTkkf-JX-I" aria-label="Télécharger toutes les pièces jointes">⬇</button></span></div></div>`
       : '';
     return `<div class="hq gt"><div class="hp"></div><div class="a3I">Zone contenant les pièces jointes</div>${toolbar}<div class="aQH">${cards}</div></div><div class="hi"></div>`;
   }
@@ -211,8 +211,14 @@
     document.getElementById('popup').style.display = 'none';
     if (editor) editor.innerHTML = '';
     window.__fake.closes++;
-    if (text.replace(/<[^>]*>/g, '').trim()) {
-      // Gmail enregistre le brouillon : il apparaît à la fin de la conversation.
+    if (text.replace(/<[^>]*>/g, '').trim() && !params.has('draftItem')) {
+      // Vrai Gmail : la réponse revient d'elle-même, ouverte, dans la conversation.
+      setTimeout(() => {
+        openReply(text);
+        window.__fake.restored = (window.__fake.restored || 0) + 1;
+      }, 300);
+    } else if (text.replace(/<[^>]*>/g, '').trim()) {
+      // Variante : le brouillon apparaît replié (« Brouillon ») à la fin de la conversation.
       setTimeout(() => {
         const d = document.createElement('div');
         d.setAttribute('role', 'listitem');
@@ -242,7 +248,11 @@
     if (!card) return;
     const zone = card.querySelector('.aQw');
     if (zone && !zone.children.length) {
-      zone.innerHTML = '<div role="button" class="T-I aSK" aria-label="Télécharger" data-tooltip="Télécharger">⬇</div><div role="button" class="T-I aSG" aria-label="Ajouter à Drive" data-tooltip="Ajouter à Drive">▲</div>';
+      const n = card.querySelector('.aV3').textContent;
+      zone.innerHTML = `<span><button class="VYBDae-JX-I" aria-label="Utiliser  pour modifier la pièce jointe ${n}" style="display:none">✎</button></span>
+        <span><button class="VYBDae-JX-I" aria-label="Télécharger la pièce jointe ${n}">⬇</button></span>
+        <span><button class="VYBDae-JX-I" aria-label="Ajouter la pièce jointe ${n} à Drive">▲</button></span>
+        <span><button class="VYBDae-JX-I" aria-label="Enregistrer une copie dans Photos">◎</button></span>`;
     }
   });
 
@@ -252,12 +262,13 @@
     const card = t.closest('.aZo');
     if (card) {
       const name = card.querySelector('.aV3').textContent;
-      if (t.closest('[aria-label="Télécharger"]')) window.__fake.downloads.push(name);
-      else if (t.closest('[aria-label="Ajouter à Drive"]')) window.__fake.drive.push(name);
+      if (t.closest('[aria-label^="Télécharger la pièce jointe"]')) window.__fake.downloads.push(name);
+      else if (t.closest('[aria-label$="à Drive"]')) window.__fake.drive.push(name);
+      else if (t.closest('.aQw button')) window.__fake.otherButtons = (window.__fake.otherButtons || 0) + 1;
       else if (t.closest('a.aQy')) { e.preventDefault(); window.__fake.previews.push(name); }
       return;
     }
-    if (t.closest('[aria-label="Tout télécharger"]')) { window.__fake.downloadAll++; return; }
+    if (t.closest('[aria-label="Télécharger toutes les pièces jointes"]')) { window.__fake.downloadAll++; return; }
     if (t.closest('#expand-all')) {
       window.__fake.expandAllClicks++;
       if (params.has('asyncExpand')) setTimeout(expandAll, 400);

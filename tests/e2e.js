@@ -236,27 +236,29 @@ async function main() {
     await shot(thread, 'reponse-popup');
   });
 
-  await step('pop-up : on écrit, puis elle reprend sa place tout en bas (brouillon rouvert)', async () => {
+  await step('pop-up : on écrit, puis elle reprend sa place tout en bas', async () => {
     await thread.click('#popup-editor');
     await thread.keyboard.type('Bonjour, bien reçu.');
     await thread.waitForTimeout(1300);
     await scrollTo(thread, 'bottom');
-    await thread.waitForFunction((f) => !eval(f)() && window.__fake.draftReopened === 1 && document.querySelector('#draft-open #editor'), popupShown.toString(), { timeout: 6000 });
-    const text = await thread.evaluate(() => document.querySelector('#draft-open #editor').textContent);
+    await thread.waitForFunction((f) => !eval(f)() && window.__fake.restored === 1 && document.querySelector('.ip.adB #editor'), popupShown.toString(), { timeout: 6000 });
+    const text = await thread.evaluate(() => document.querySelector('.ip.adB #editor').textContent);
     assert.equal(text, 'Bonjour, bien reçu.');
   });
 
-  await step('2e et 3e tours : la pop-up revient à chaque fois qu’on remonte', async () => {
+  await step('2e et 3e tours : la pop-up revient tout de suite quand on remonte', async () => {
     for (const round of [2, 3]) {
-      await thread.waitForTimeout(1700);
+      await thread.waitForTimeout(1100); // pas d'attente de plusieurs secondes après le retour
       await scrollTo(thread, 'top');
-      await thread.waitForFunction((r) => window.__fake.popouts === r, round, { timeout: 4000 });
+      await thread.waitForFunction((r) => window.__fake.popouts === r, round, { timeout: 3000 });
       const text = await thread.evaluate(() => document.getElementById('popup-editor').textContent);
       assert.equal(text, 'Bonjour, bien reçu.', 'texte conservé (tour ' + round + ')');
       await thread.waitForTimeout(1300);
       await scrollTo(thread, 'bottom');
-      await thread.waitForFunction((r) => window.__fake.draftReopened === r && document.querySelector('#draft-open #editor'), round, { timeout: 6000 });
+      await thread.waitForFunction((r) => window.__fake.restored === r && document.querySelector('.ip.adB #editor'), round, { timeout: 6000 });
     }
+    const journal = await thread.evaluate(() => document.documentElement.getAttribute('data-glx-loaded') !== null);
+    assert.ok(journal);
   });
 
   await step('pop-up vide : une réponse vide se rouvre en bas', async () => {
@@ -302,6 +304,29 @@ async function main() {
     assert.ok(text.includes('réponse passée en fenêtre pop-up'), 'journal des actions');
   });
   await thread.close();
+
+  console.log('\nConversation (brouillon replié après fermeture) :');
+  const drafty = await openGmail('https://mail.google.com/mail/u/0/thread?draftItem=1&delayRender=1#inbox/FMfcgzTEST5');
+  await step('pop-up : brouillon replié rouvert à sa place, puis nouveau tour', async () => {
+    await drafty.waitForFunction(() => document.getElementById('list') && !document.querySelector('#list .kv, #list .kQ'), null, { timeout: 6000 });
+    await drafty.click('#reply-btn');
+    await drafty.waitForSelector('.ip.adB #compose');
+    await drafty.waitForTimeout(400);
+    for (const round of [1, 2]) {
+      await scrollTo(drafty, 'top');
+      await drafty.waitForFunction((r) => window.__fake.popouts === r, round, { timeout: 4000 });
+      if (round === 1) {
+        await drafty.click('#popup-editor');
+        await drafty.keyboard.type('Brouillon test');
+      }
+      await drafty.waitForTimeout(1300);
+      await scrollTo(drafty, 'bottom');
+      await drafty.waitForFunction((r) => window.__fake.draftReopened === r && document.querySelector('#draft-open #editor'), round, { timeout: 6000 });
+      await drafty.waitForTimeout(1100);
+    }
+    assert.equal(await drafty.evaluate(() => document.querySelector('#draft-open #editor').textContent), 'Brouillon test');
+  });
+  await drafty.close();
 
   console.log('\nConversation (dépliage lent) :');
   const slow = await openGmail('https://mail.google.com/mail/u/0/thread?delayRender=1&asyncExpand=1#inbox/FMfcgzTEST4');
