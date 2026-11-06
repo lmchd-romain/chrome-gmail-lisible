@@ -21,6 +21,8 @@
 
   const NAME = 'réponse pop-up';
   const POP_BELOW = 0.35; // part visible de la réponse sous laquelle elle passe en pop-up
+  const DOCK_MARGIN = 40; // la réponse revient dès que sa place est visible (à 40 px du bas de l'écran)
+  const CLIMB = 150; // il faut remonter d'au moins 150 px pour la renvoyer en pop-up (pas de va-et-vient)
   const POPUP = '.AD, [role="dialog"]';
   const POPOUT_RE = /\bpop ?up\b|\bpop ?out\b|\bpopup\b/;
   const CLOSE_LABELS = ['enregistrer et fermer', 'fermer', 'save & close', 'save and close', 'close', 'speichern und schliessen', 'guardar y cerrar', 'salva e chiudi'];
@@ -34,6 +36,7 @@
   let cooldownUntil = 0;
   let lastReplyButton = null; // dernier bouton « Répondre / Répondre à tous / Transférer » cliqué
   let lastProblem = '';
+  let lowest = 0; // position la plus basse atteinte depuis que la réponse est dans la conversation
 
   function problem(msg) {
     if (msg !== lastProblem) GL.trace(NAME, msg); // une seule fois de suite par problème
@@ -131,6 +134,27 @@
     );
   }
 
+  function viewBottom(sc) {
+    const docScroller = sc === document.scrollingElement || sc === document.documentElement;
+    return docScroller ? innerHeight : Math.min(innerHeight, sc.getBoundingClientRect().bottom);
+  }
+
+  /**
+   * Vrai quand l'endroit où la réponse va revenir est visible à l'écran :
+   * son ancien emplacement dans la conversation (ou, à défaut, la fin du dernier message).
+   */
+  function spotVisible(p, list, sc) {
+    const limit = viewBottom(sc) - DOCK_MARGIN;
+    let el = p.anchor;
+    for (let i = 0; el && el.isConnected && i < 4; i++, el = el.parentElement) {
+      const r = el.getBoundingClientRect();
+      if (r.width || r.height) return r.top <= limit;
+    }
+    const items = list.querySelectorAll('[role="listitem"]');
+    const last = items[items.length - 1];
+    return !!last && last.getBoundingClientRect().bottom <= limit;
+  }
+
   function visibleRatio(host, sc) {
     const h = host.getBoundingClientRect();
     const docScroller = sc === document.scrollingElement || sc === document.documentElement;
@@ -156,7 +180,7 @@
       GL.click(btn);
       const popup = await GL.waitFor(() => visiblePopups().find((p) => !before.has(p)), 3000);
       if (popup) {
-        popped = { root: popup, threadKey: c.threadKey, at: Date.now(), replyButton: lastReplyButton };
+        popped = { root: popup, threadKey: c.threadKey, at: Date.now(), replyButton: lastReplyButton, anchor: c.host };
         lastProblem = '';
         GL.trace(NAME, 'réponse passée en fenêtre pop-up');
       } else {
@@ -206,10 +230,12 @@
       }
 
       const back = await GL.waitFor(() => findInlineReply(), 4000);
-      if (!back) problem('réponse rouverte introuvable dans la conversation');
-      else GL.trace(NAME, 'réponse remise dans la conversation');
-      const sc = threadScroller(p.root);
-      if (sc && isScrollable(sc)) sc.scrollTop = sc.scrollHeight;
+      if (!back) {
+        problem('réponse rouverte introuvable dans la conversation');
+      } else {
+        GL.trace(NAME, 'réponse remise dans la conversation');
+        back.host.scrollIntoView({ block: 'nearest' }); // juste ce qu'il faut pour la voir
+      }
     } finally {
       busy = false;
       cooldownUntil = Date.now() + 800;
@@ -264,7 +290,9 @@
         if (s.dockReplyAtBottom && now > cooldownUntil && now - popped.at > 1200 && direction > 0) {
           const list = GL.visibleThreadList();
           const sc = list && GL.findScroller(list);
-          if (list && GL.threadKey(list) === popped.threadKey && sc && GL.atBottom(sc)) dockBack(popped);
+          if (list && sc && GL.threadKey(list) === popped.threadKey && (spotVisible(popped, list, sc) || GL.atBottom(sc))) {
+            dockBack(popped);
+          }
         }
         return;
       }
@@ -276,13 +304,16 @@
       inline = null;
       return;
     }
+    const sc = threadScroller(found.host);
     if (!inline || inline.card !== found.card || inline.host !== found.host) {
       const list = GL.visibleThreadList();
       inline = { host: found.host, card: found.card, threadKey: list ? GL.threadKey(list) : location.hash };
       userScrolled = false; // on attend que vous fassiez défiler la conversation
+      lowest = sc.scrollTop;
     }
+    lowest = Math.max(lowest, sc.scrollTop);
     if (!userScrolled || direction >= 0 || now < cooldownUntil) return;
-    const sc = threadScroller(found.host);
+    if (sc.scrollTop > lowest - CLIMB) return; // petit coup de molette vers le haut : on ne bouge pas
     if (visibleRatio(found.host, sc) < POP_BELOW && !(isScrollable(sc) && GL.atBottom(sc))) popOut(inline);
   }
 

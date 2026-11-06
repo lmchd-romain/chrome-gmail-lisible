@@ -246,8 +246,31 @@ async function main() {
     assert.equal(text, 'Bonjour, bien reçu.');
   });
 
+  await step('retour avant le tout en bas, sans va-et-vient', async () => {
+    await thread.waitForTimeout(1100);
+    await scrollTo(thread, 'top');
+    await thread.waitForFunction(() => window.__fake.popouts === 2, null, { timeout: 3000 });
+    await thread.waitForTimeout(1300);
+    // On redescend seulement jusqu'à voir l'emplacement de la réponse (pas tout en bas).
+    await thread.evaluate(() => {
+      const s = document.getElementById('scroller');
+      s.scrollTop = s.scrollHeight - s.clientHeight - 230;
+    });
+    await thread.waitForFunction(() => window.__fake.restored === 2 && document.querySelector('.ip.adB #editor'), null, { timeout: 6000 });
+    const gap = await thread.evaluate(() => {
+      const s = document.getElementById('scroller');
+      return Math.round(s.scrollHeight - s.clientHeight - s.scrollTop);
+    });
+    assert.ok(gap > 100, 'remise en place sans aller tout en bas (' + gap + ' px du bas)');
+    // Petit coup de molette vers le haut : la réponse reste à sa place.
+    await thread.waitForTimeout(1000);
+    await thread.evaluate(() => (document.getElementById('scroller').scrollTop -= 100));
+    await thread.waitForTimeout(900);
+    assert.equal(await thread.evaluate(() => window.__fake.popouts), 2, 'pas de pop-up pour un petit mouvement');
+  });
+
   await step('2e et 3e tours : la pop-up revient tout de suite quand on remonte', async () => {
-    for (const round of [2, 3]) {
+    for (const round of [3, 4]) {
       await thread.waitForTimeout(1100); // pas d'attente de plusieurs secondes après le retour
       await scrollTo(thread, 'top');
       await thread.waitForFunction((r) => window.__fake.popouts === r, round, { timeout: 3000 });

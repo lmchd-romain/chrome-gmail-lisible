@@ -12,7 +12,7 @@
     hideQuotedHistory: true, // Masquer les anciens messages recopiés dans les réponses (s'ils sont déjà plus haut)
     hideRepeatedSignatures: true, // Une seule signature par e-mail (signatures empilées)
     floatingReply: true, // Réponse dans la fenêtre pop-up de Gmail quand on remonte la conversation
-    dockReplyAtBottom: true, // … et la remettre en place quand on redescend tout en bas
+    dockReplyAtBottom: true, // … et la remettre en place dès que sa place réapparaît en redescendant
     daySeparators: true, // Séparateurs de dates dans les listes d'e-mails
     daySeparatorMode: 'day', // 'day' = un séparateur par jour, 'group' = regroupé (Cette semaine…)
     attachmentsOnTop: true, // Pièces jointes au-dessus du texte du message

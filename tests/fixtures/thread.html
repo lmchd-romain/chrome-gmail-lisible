@@ -108,7 +108,8 @@
         <div class="bHJ" id="toolbar"></div>
       </div>
       <div role="list" id="list"></div>
-      <div class="amn"><span role="button" class="ams bkH" id="reply-btn">Répondre</span> <span role="button" class="ams bkI">Transférer</span></div>`;
+      <div class="amn"><span role="button" class="ams bkH" id="reply-btn">Répondre</span> <span role="button" class="ams bkI">Transférer</span></div>
+      <div class="foot" style="height:260px;color:#999;padding:24px 72px">Espace de stockage utilisé · Conditions · Confidentialité · Dernière activité du compte</div>`;
     const list = document.getElementById('list');
     // États : h7 = ouvert, kv = replié, kQ = caché derrière « N messages plus anciens »
     const states = ['h7', 'kv', 'kv', 'kQ', 'kQ', 'kQ', 'kv', 'h7'];
@@ -168,14 +169,16 @@
       </div>`;
   }
 
-  function openReply(text) {
+  function openReply(text, restore) {
     const list = document.getElementById('list');
     const last = [...list.querySelectorAll('[role=listitem]')].filter((m) => !m.id.startsWith('draft')).pop();
     const ip = last.querySelector('.ip');
     ip.classList.add('adB');
     ip.innerHTML = composeHtml(text);
-    document.getElementById('editor').focus();
-    document.getElementById('scroller').scrollTop = 1e9;
+    document.getElementById('editor').focus({ preventScroll: true });
+    // Nouvelle réponse : Gmail descend tout en bas ; réponse remise après la pop-up : juste visible.
+    if (restore) ip.scrollIntoView({ block: 'nearest' });
+    else document.getElementById('scroller').scrollTop = 1e9;
   }
 
   // Comme Gmail : la fenêtre pop-up est réutilisée (cachée puis réaffichée), et un brouillon
@@ -214,7 +217,7 @@
     if (text.replace(/<[^>]*>/g, '').trim() && !params.has('draftItem')) {
       // Vrai Gmail : la réponse revient d'elle-même, ouverte, dans la conversation.
       setTimeout(() => {
-        openReply(text);
+        openReply(text, true);
         window.__fake.restored = (window.__fake.restored || 0) + 1;
       }, 300);
     } else if (text.replace(/<[^>]*>/g, '').trim()) {

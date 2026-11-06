@@ -11,7 +11,7 @@ Extension Chrome qui rend Gmail plus lisible.
 - **Masque l'historique déjà lu** : quand une réponse recopie toute la conversation précédente, la partie recopiée est cachée si elle est déjà affichée plus haut. Si vous n'aviez jamais reçu ces anciens messages (ajouté en copie en cours de route, par exemple), ils restent affichés, même si Gmail les avait cachés derrière « ••• ».
 - **Une seule signature par e-mail** : quand la même signature est empilée plusieurs fois dans un e-mail (une par réponse), une seule reste visible.
 - **Masque les noms de fichiers** du type `<BEAR_Rennes_6mm.dxf><BEAR_Rennes_6mm.pdf>` qu'Apple Mail ajoute dans le texte des réponses.
-- **Réponse en fenêtre pop-up** : après un clic sur « Répondre », si vous remontez pour relire la conversation, la réponse passe dans la fenêtre pop-up de Gmail (la vraie). Quand vous redescendez tout en bas, elle reprend sa place : Gmail l'enregistre en brouillon, puis l'extension rouvre ce brouillon dans la conversation. Votre texte est conservé.
+- **Réponse en fenêtre pop-up** : après un clic sur « Répondre », si vous remontez pour relire la conversation, la réponse passe dans la fenêtre pop-up de Gmail (la vraie). Quand vous redescendez et que sa place réapparaît à l'écran, elle revient dans la conversation (Gmail garde votre texte en brouillon). Un petit mouvement vers le haut ne la renvoie pas en pop-up : il faut vraiment remonter.
 
 **Pièces jointes**
 
