@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Faux Gmail — boîte de réception</title>
+<style>
+  body { margin: 0; font: 14px Arial, sans-serif; background: #f6f8fc; color: #202124; }
+  .Tm.aeJ { position: fixed; top: 64px; left: 256px; right: 56px; bottom: 0; overflow-y: auto; background: #fff; }
+  table.F { width: 100%; table-layout: fixed; border-collapse: collapse; }
+  tr.zA { height: 40px; box-shadow: inset 0 -1px 0 0 rgba(100,121,143,.12); cursor: pointer; }
+  tr.zA:hover { box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60,64,67,.3); }
+  tr.zE { font-weight: bold; }
+  td { padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  td.xW { text-align: right; }
+</style>
+</head>
+<body>
+<div class="Tm aeJ">
+  <div role="main">
+    <div class="ae4 UI" id="section1"></div>
+    <div class="ae4 UI" id="section2"></div>
+  </div>
+</div>
+<script>
+(function () {
+  const fmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const fmtShort = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+  const fmtTime = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const fmtNum = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  let seq = 0;
+
+  function dateAt(daysAgo, hour) {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, hour, 5);
+  }
+
+  function shortText(d) {
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) return fmtTime.format(d);
+    if (d.getFullYear() === now.getFullYear()) return fmtShort.format(d);
+    return fmtNum.format(d);
+  }
+
+  function makeRow(daysAgo, hour, subject, opts = {}) {
+    const d = dateAt(daysAgo, hour);
+    const id = ':r' + (seq++);
+    const tr = document.createElement('tr');
+    tr.className = 'zA ' + (opts.unread ? 'zE' : 'yO');
+    tr.id = id;
+    tr.dataset.daysAgo = daysAgo;
+    const title = opts.title || fmt.format(d);
+    tr.innerHTML = `<td class="PF xY PE"></td>
+      <td class="oZ-x3 xY aid"><div class="oZ-jc T-Jo J-J5-Ji" role="checkbox" aria-checked="false"></div></td>
+      <td class="apU xY"><span class="aXw T-KT" title="Non suivi"></span></td>
+      <td class="WA xY"></td>
+      <td class="yX xY"><div class="yW"><span class="zF" email="x@example.com" name="Expéditeur">Expéditeur</span></div></td>
+      <td class="xY a4W"><div class="xS" role="link"><div class="xT"><div class="y6"><span>${subject}</span></div></div></div></td>
+      <td class="yf xY">&nbsp;</td>
+      <td class="xW xY"><span title="${title}" aria-label="${title}"><b>${shortText(d)}</b></span></td>`;
+    return tr;
+  }
+
+  function makeTable(parent, rows) {
+    const cp = document.createElement('div');
+    cp.className = 'Cp';
+    cp.innerHTML = `<div><table cellpadding="0" class="F cf zt"><colgroup>
+      <col class="Ci"><col class="y5"><col class="oZ-x3"><col class="apU"><col class="WA"><col class="yY"><col><col class="yg"><col class="xX">
+      </colgroup><tbody></tbody></table></div>`;
+    const tbody = cp.querySelector('tbody');
+    rows.forEach((r) => tbody.appendChild(r));
+    parent.appendChild(cp);
+    return tbody;
+  }
+
+  const main = makeTable(document.getElementById('section1'), [
+    makeRow(5, 9, 'E-mail remis en avant (en attente)'),
+    makeRow(0, 11, 'Devis atelier', { unread: true }),
+    makeRow(0, 8, 'Réunion de chantier'),
+    makeRow(1, 17, 'Commande bois'),
+    makeRow(2, 10, 'Plans BEAR Rennes'),
+    makeRow(3, 15, 'Facture'),
+    makeRow(8, 9, 'Livraison'),
+    makeRow(20, 9, 'Newsletter'),
+    makeRow(40, 9, 'Ancien devis'),
+    makeRow(400, 9, 'Très ancien', { title: 'Thu, Oct 2, 2025 at 9:05 AM' }),
+  ]);
+  makeTable(document.getElementById('section2'), [
+    makeRow(0, 7, 'Section 2 — aujourd\'hui'),
+    makeRow(1, 7, 'Section 2 — hier'),
+  ]);
+
+  window.__fake = {
+    addNewMail() {
+      main.insertBefore(makeRow(0, 23, 'Nouveau message', { unread: true }), main.firstChild);
+    },
+    removeRow(daysAgo) {
+      const r = main.querySelector(`tr[data-days-ago="${daysAgo}"]`);
+      if (r) r.remove();
+    },
+  };
+})();
+</script>
+</body>
+</html>

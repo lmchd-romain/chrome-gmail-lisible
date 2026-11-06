@@ -1,0 +1,10 @@
+{
+  "name": "gmail-lisible",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Extension Chrome pour rendre Gmail plus lisible.",
+  "scripts": {
+    "test": "node --test tests/*.test.js && node tests/e2e.js",
+    "icons": "python3 tools/make-icons.py"
+  }
+}

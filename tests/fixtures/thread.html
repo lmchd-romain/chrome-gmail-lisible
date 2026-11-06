@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Faux Gmail — conversation</title>
+<style>
+  /* Imitation minimale de la mise en page de Gmail (zone qui défile en interne). */
+  body { margin: 0; font: 14px Arial, sans-serif; background: #f6f8fc; }
+  .nH.top { height: 64px; background: #eaf1fb; }
+  .Tm.aeJ { position: fixed; top: 64px; left: 256px; right: 56px; bottom: 0; overflow-y: auto; background: #fff; }
+  .ha { padding: 20px 72px; }
+  h2.hP { margin: 0; font-size: 22px; font-weight: 400; }
+  .bHJ { position: absolute; right: 24px; top: 20px; }
+  [role=list] > div { padding: 12px 24px; border-top: 1px solid #eee; }
+  .kQ { display: none; }
+  .adv.kQ { display: block; text-align: center; }
+  .kv .adf { cursor: pointer; color: #555; }
+  .h7 .adf { display: none; }
+  .kv .adn, .kQ .adn { display: none; }
+  .ii.gt { line-height: 1.5; }
+  .h5 { display: none; }
+  .ajR { display: inline-block; width: 22px; height: 10px; background: #ddd; border-radius: 6px; }
+  .ip { min-height: 1px; }
+  .M9 { border: 1px solid #ccc; border-radius: 8px; padding: 8px; }
+  .Am.editable { min-height: 120px; outline: none; border-top: 1px solid #eee; padding-top: 8px; }
+  .amn { padding: 16px 72px 40px; }
+  .filler { height: 380px; color: #999; }
+</style>
+</head>
+<body>
+<div class="nH top">Barre du haut</div>
+<div class="Tm aeJ" id="scroller">
+  <div role="main">
+    <div class="a98 iY">
+      <div class="nH">
+        <div class="ha"><h2 class="hP" data-thread-perm-id="thread-f:1784000000000000001" data-legacy-thread-id="18c0000000000001">Plans BEAR Rennes</h2></div>
+        <div class="bHJ" id="toolbar"></div>
+      </div>
+      <div role="list" id="list"></div>
+      <div class="amn"><span role="button" class="ams bkH" id="reply-btn">Répondre</span> <span role="button" class="ams bkI">Transférer</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const list = document.getElementById('list');
+
+  // Corps d'un message avec contenu abrégé et noms de pièces jointes façon Apple Mail.
+  function bodyHtml(i) {
+    if (i === 6) {
+      return `<div dir="ltr">Merci, voici la version corrigée des plans.</div>
+        <div class="yj6qo"></div>
+        <div class="ajU"><div class="ajR" role="button" tabindex="0" aria-label="Afficher le contenu abrégé" data-tooltip="Afficher le contenu abrégé" aria-expanded="false"><img class="ajT" alt=""></div></div>
+        <div class="h5"><div>Le 5 nov. 2026 à 10:00, Romain a écrit :</div><blockquote>Ancien message cité…</blockquote></div>
+        <div class="im" id="leftover">
+          <div><br></div>
+          <div id="ph1">&lt;BEAR_Rennes_6mm.dxf&gt;</div>
+          <div id="ph2">&lt;BEAR_Rennes_6mm.pdf&gt;</div>
+          <div id="ph3">&lt;BEAR_Rennes_10mm.dxf&gt;&lt;BEAR_Rennes_10mm.pdf&gt;</div>
+          <div id="mixed">Fichiers : <br>&lt;PastedGraphic-1.tiff&gt;<br>Fin du message</div>
+          <div id="keep-mail">Contact : Jean &lt;jean.dupont@example.com&gt;</div>
+          <div id="keep-url">&lt;www.example.com&gt;</div>
+        </div>`;
+    }
+    if (i === 2) {
+      return `<div dir="ltr">Message ${i} sans contenu abrégé. &lt;garde-moi.pdf&gt; doit rester visible.</div>`;
+    }
+    return `<div dir="ltr">Texte du message ${i}.</div><div class="filler">(contenu long)</div>`;
+  }
+
+  // États : h7 = ouvert, kv = replié, kQ = caché derrière « N messages plus anciens »
+  const states = ['h7', 'kv', 'kv', 'kQ', 'kQ', 'kQ', 'kv', 'h7'];
+  states.forEach((state, i) => {
+    if (i === 3) {
+      const notice = document.createElement('div');
+      notice.className = 'kQ adv';
+      notice.id = 'notice';
+      notice.innerHTML = '<div class="G3"><span class="adx" role="button"><span>3</span></span> messages plus anciens</div>';
+      list.appendChild(notice);
+    }
+    const m = document.createElement('div');
+    m.setAttribute('role', 'listitem');
+    m.className = state;
+    m.dataset.index = i;
+    m.innerHTML = `<div class="adf ads">Expéditeur ${i} — aperçu du message ${i}</div>
+      <div class="adn ads"><div class="gs"><h3 class="iw">Expéditeur ${i}</h3>
+      <div class="ii gt"><div class="a3s aiL">${bodyHtml(i)}</div></div></div></div>
+      <div class="ip iq"></div>`;
+    list.appendChild(m);
+  });
+
+  function expand(msg) {
+    msg.classList.remove('kv', 'kQ');
+    msg.classList.add('h7');
+  }
+
+  // Bouton « Tout développer » (img.gx), sauf avec ?noExpandAll
+  if (!params.has('noExpandAll')) {
+    const btn = document.createElement('div');
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('aria-label', 'Tout développer');
+    btn.id = 'expand-all';
+    btn.innerHTML = '<img class="gx" alt="" style="width:20px;height:20px;display:inline-block;background:#ccc">';
+    document.getElementById('toolbar').appendChild(btn);
+  }
+
+  window.__fake = { expandAllClicks: 0, headerClicks: 0, noticeClicks: 0 };
+
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t.closest('#expand-all')) {
+      window.__fake.expandAllClicks++;
+      setTimeout(() => {
+        list.querySelectorAll('.kv, .kQ').forEach((m) => (m.classList.contains('adv') ? m.remove() : expand(m)));
+      }, 150);
+      return;
+    }
+    const adx = t.closest('.adx');
+    if (adx) {
+      window.__fake.noticeClicks++;
+      setTimeout(() => {
+        list.querySelectorAll('.kQ').forEach((m) => {
+          if (m.classList.contains('adv')) m.remove();
+          else { m.classList.remove('kQ'); m.classList.add('kv'); }
+        });
+      }, 150);
+      return;
+    }
+    const adf = t.closest('.kv .adf');
+    if (adf) {
+      window.__fake.headerClicks++;
+      const msg = adf.closest('[role=listitem]');
+      setTimeout(() => expand(msg), 100);
+      return;
+    }
+    if (t.closest('#reply-btn')) openReply();
+  });
+
+  function openReply() {
+    const last = list.querySelector('[role=listitem]:last-child');
+    const ip = last.querySelector('.ip');
+    ip.classList.add('adB');
+    ip.innerHTML = `<div class="M9" id="compose">
+        <div class="aoP"><div>À : Romain</div>
+        <div class="Am Al editable" id="editor" contenteditable="true" role="textbox" g_editable="true"></div>
+        <div class="ajR" id="compose-dots" role="button" aria-label="Afficher le contenu abrégé" style="user-select: none;"></div>
+        <div class="btC"><div role="button" class="T-I aoO" id="send">Envoyer</div></div></div>
+      </div>`;
+    document.getElementById('editor').focus();
+    document.getElementById('scroller').scrollTop = 1e9;
+  }
+  window.__openReply = openReply;
+  window.__closeReply = () => {
+    const ip = list.querySelector('.ip.adB');
+    if (ip) { ip.classList.remove('adB'); ip.innerHTML = ''; }
+  };
+})();
+</script>
+</body>
+</html>

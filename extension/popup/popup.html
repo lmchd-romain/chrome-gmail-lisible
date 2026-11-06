@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gmail Lisible</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <img src="../icons/icon48.png" width="32" height="32" alt="" />
+      <div>
+        <h1>Gmail Lisible</h1>
+        <p class="hint">Les changements s'appliquent tout de suite.</p>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <h2>Conversations</h2>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Déplier tous les messages</span>
+            <span class="desc">Plus de messages repliés dans les longues conversations.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="autoExpand" />
+        </label>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Masquer « Afficher le contenu abrégé »</span>
+            <span class="desc">Cache le bouton « ••• » sous chaque message.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="hideTrimmedButton" />
+        </label>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Masquer les noms de pièces jointes</span>
+            <span class="desc">Cache les « &lt;plan.pdf&gt; » affichés sous le contenu abrégé.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="hideAttachmentPlaceholders" />
+        </label>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Réponse flottante</span>
+            <span class="desc">Quand vous remontez la conversation, votre réponse reste visible en bas à droite. Elle reprend sa place quand vous redescendez.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="floatingReply" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Boîte de réception</h2>
+
+        <label class="row">
+          <span class="text">
+            <span class="title">Séparateurs de dates</span>
+            <span class="desc">Un petit titre entre les e-mails de chaque jour.</span>
+          </span>
+          <input type="checkbox" class="switch" data-key="daySeparators" />
+        </label>
+
+        <div class="modes" role="radiogroup" aria-label="Type de séparateurs">
+          <label class="mode">
+            <input type="radio" name="daySeparatorMode" value="day" />
+            <span class="mode-body">
+              <span class="title">Chaque jour</span>
+              <span class="example">Aujourd'hui · Hier · 04/11 · 03/11…</span>
+            </span>
+          </label>
+          <label class="mode">
+            <input type="radio" name="daySeparatorMode" value="group" />
+            <span class="mode-body">
+              <span class="title">Regrouper</span>
+              <span class="example">Aujourd'hui · Hier · Cette semaine · Semaine dernière · Octobre…</span>
+            </span>
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Pensez à recharger Gmail après une mise à jour de l'extension.</span>
+      <span class="version" id="version"></span>
+    </footer>
+
+    <script src="../shared/defaults.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
