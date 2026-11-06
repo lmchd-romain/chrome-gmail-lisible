@@ -139,8 +139,12 @@
       const label = GL.norm(b.getAttribute('aria-label') || b.getAttribute('data-tooltip') || b.getAttribute('title'));
       if (label && looseLabel(label, dir)) return { button: b };
     }
-    // Boutons sans libellé : les deux qui suivent le compteur (‹ puis ›).
     if (!counter) return null;
+    // Compteur cliquable de Gmail (« 1–50 sur 465 », « Afficher plus de messages ») :
+    // affiche la suite de la section.
+    const more = counter.el.closest('[role="button"]');
+    if (dir > 0 && more && root.contains(more) && outsideRows(more)) return { button: more };
+    // Boutons sans libellé : les deux qui suivent le compteur (‹ puis ›).
     const after = buttons.filter((b) => counter.el.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING && !b.hasAttribute('aria-haspopup') && !b.hasAttribute('aria-expanded'));
     if (after.length >= 2) return { button: dir > 0 ? after[1] : after[0] };
     return null;

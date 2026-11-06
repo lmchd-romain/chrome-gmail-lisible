@@ -128,14 +128,14 @@
       b.removeAttribute('data-tooltip');
     }
   }
-  // Boîte en sections (comme la boîte « Prioritaires ») : pas de flèches dans la barre,
-  // chaque section a son compteur et ses flèches (ici sans libellé) dans son en-tête.
+  // Boîte en sections (comme la vraie boîte de réception découpée « Messages suivis » /
+  // « Autres messages ») : pas de flèches dans la barre ; le compteur de chaque section
+  // est un bouton « Afficher plus de messages ».
   if (params.has('sections')) {
     document.getElementById('toolbar').replaceChildren();
-    const head0 = document.querySelector('#starred-section .Wg');
-    head0.insertAdjacentHTML('beforeend', '<div class="aqJ"><span class="Dj"><span>1</span>–<span>3</span> sur <span>3</span></span><div role="button" aria-disabled="true">‹</div><div role="button" aria-disabled="true">›</div></div>');
-    const head1 = document.querySelector('#rest-section .Wg');
-    head1.insertAdjacentHTML('beforeend', '<div class="aqJ"><div role="button" aria-haspopup="true" aria-label="Options de section">⋮</div><span class="Dj" id="counter"><span>1</span>–<span>10</span> sur <span>20</span></span><div role="button" id="newer" aria-disabled="true">‹</div><div role="button" id="older">›</div></div>');
+    const head = (n, from, to, total, id) => `<div class="chp5lb"><div class="Wm" role="button" ${id ? 'id="older"' : ''} aria-label="Afficher plus de messages" data-tooltip="Afficher plus de messages"><span class="Di"><div class="J-J5-Ji amH"><span class="Dj" ${id ? 'id="counter"' : ''}><span>${from}</span>–<span>${to}</span> sur <span>${total}</span></span></div></span></div><div class="aAE qi J-J5-Ji J-JN-M-I" role="button" aria-label="Options relatives aux sections de la boîte de réception" aria-expanded="false"></div><div class="Ta J-M" style="display:none"></div></div>`;
+    document.querySelector('#starred-section .Wg').insertAdjacentHTML('beforeend', head(0, 1, 3, 3));
+    document.querySelector('#rest-section .Wg').insertAdjacentHTML('beforeend', head(1, 1, 10, 20, true) + '<div id="newer" style="display:none"></div>');
   }
   function render() {
     const n = /\/p2$/.test(location.hash) ? 2 : 1;
