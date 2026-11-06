@@ -9,6 +9,8 @@
     autoExpand: true, // Déplier tous les messages d'une conversation
     hideTrimmedButton: true, // Masquer le bouton « Afficher le contenu abrégé » (messages et réponse)
     hideAttachmentPlaceholders: true, // Masquer les « <fichier.pdf> » laissés par Apple Mail
+    hideQuotedHistory: true, // Masquer les anciens messages recopiés dans les réponses (s'ils sont déjà plus haut)
+    hideRepeatedSignatures: true, // Une seule signature par e-mail (signatures empilées)
     floatingReply: true, // Réponse dans la fenêtre pop-up de Gmail quand on remonte la conversation
     dockReplyAtBottom: true, // … et la remettre en place quand on redescend tout en bas
     daySeparators: true, // Séparateurs de dates dans les listes d'e-mails

@@ -10,11 +10,12 @@ Nobody can open the owner's Gmail from here: when real Gmail behaves differently
   - `shared/defaults.js` — settings keys and defaults (popup + content scripts).
   - `content/core.js` — settings (chrome.storage.sync), MutationObserver (throttled `update`, synchronous `quick` hook), shared helpers (`GL.visibleThreadList`, `GL.threadKey`, `GL.isDraftMessage`, `GL.waitFor`, `GL.click`…). Features call `GL.register({name, update, quick?})`.
   - `content/expand.js` — auto-expand (expand-all button, fallback clicks); `quick` path + `.glx-expanding` veil so collapsed messages never paint.
+  - `content/history.js` — per message, quote units (Gmail-trimmed `.h5/.adL`, `.gmail_quote`, `blockquote[type=cite]` + attribution line, Outlook « De : / Envoyé : » block + following siblings) are compared (6-word shingles) with the messages ABOVE: redundant → `.glx-quote-hidden`; Gmail-trimmed but never received → `.glx-quote-show` (revealed). Also dedupes identical signatures within one body (`-- ` regions, signature classes, signature-like tables): keeps the least nested one.
   - `content/trimmed.js` — hides Apple Mail `<file.ext>` placeholders (line-based, robust to split text nodes / `<wbr>`).
   - `content/reply-popout.js` — clicks Gmail's own pop-out button when scrolling up; at the bottom closes the popup (Gmail saves a draft) and reopens the draft inline.
   - `content/attachments.js` — own attachment bar (on top / compact) + conversation summary; actions click Gmail's hidden native card buttons.
   - `content/day-separators.js` — date separators (skips the « Messages suivis » section).
-  - `content/infinite-scroll.js` — overscroll at list bottom/top clicks « Plus anciens » / « Plus récents ».
+  - `content/infinite-scroll.js` — overscroll at list bottom/top clicks « Plus anciens » / « Plus récents »; fallback: page URL `#…/pN` guarded by the « 1–50 sur N » counter.
   - `content/diagnostic.js` — privacy-safe DOM report requested by the popup.
   - `content/dates.js` — pure date parsing/grouping (also required by Node tests).
   - `popup/` — settings UI (also used as options page) + diagnostic button.

@@ -119,21 +119,31 @@
     makeRow(1, 7, 'Section 2 — hier'),
   ]);
 
-  // Pagination de Gmail : la liste est remplacée par la page suivante / précédente.
-  function showPage(n) {
+  // Pagination de Gmail : les boutons changent l'adresse (#inbox/p2), puis la liste est remplacée.
+  const params = new URLSearchParams(location.search);
+  if (params.has('nolabels')) {
+    for (const id of ['older', 'newer']) {
+      const b = document.getElementById(id);
+      b.removeAttribute('aria-label');
+      b.removeAttribute('data-tooltip');
+    }
+  }
+  function render() {
+    const n = /\/p2$/.test(location.hash) ? 2 : 1;
+    if (n === window.__fake.page) return;
     main.replaceChildren(...(n === 2 ? page2() : page1()));
     document.getElementById('older').setAttribute('aria-disabled', String(n === 2));
     document.getElementById('newer').setAttribute('aria-disabled', String(n === 1));
     document.getElementById('counter').textContent = n === 2 ? '11–20 sur 20' : '1–10 sur 20';
-    location.hash = n === 2 ? '#inbox/p2' : '#inbox';
     document.getElementById('scroller').scrollTop = 0;
     window.__fake.page = n;
   }
+  window.addEventListener('hashchange', () => setTimeout(render, 150));
   document.getElementById('older').addEventListener('click', (e) => {
-    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') setTimeout(() => showPage(2), 150);
+    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') location.hash = '#inbox/p2';
   });
   document.getElementById('newer').addEventListener('click', (e) => {
-    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') setTimeout(() => showPage(1), 150);
+    if (e.currentTarget.getAttribute('aria-disabled') !== 'true') location.hash = '#inbox';
   });
 
   window.__fake = {

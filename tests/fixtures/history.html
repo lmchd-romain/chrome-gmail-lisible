@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Faux Gmail — historique recopié</title>
+<style>
+  body { margin: 0; font: 14px Arial, sans-serif; background: #f6f8fc; }
+  .Tm.aeJ { position: fixed; top: 0; left: 256px; right: 56px; bottom: 0; overflow-y: auto; background: #fff; }
+  .ha { padding: 20px 72px; }
+  [role=list] > div { padding: 12px 24px; border-top: 1px solid #eee; }
+  .h5 { display: none; }
+  .ajR { display: inline-block; width: 22px; height: 10px; background: #ddd; }
+</style>
+</head>
+<body>
+<div class="Tm aeJ" id="scroller">
+  <div role="main">
+    <div class="a98 iY">
+      <div class="nH"><div class="ha"><h2 class="hP" data-thread-perm-id="thread-f:2">Re: DEMANDE POUR BPM 2026</h2></div></div>
+      <div role="list" id="list"></div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const logo = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="60" height="30"><rect width="60" height="30" fill="#222"/></svg>');
+  // Signature placée tout en bas, sous la citation (réglage de sa messagerie).
+  const SIG = `<div>--</div><table class="sig"><tbody><tr><td><img src="${logo}" width="60" height="30" alt=""></td>
+    <td>Thomas FERNANDEZ<br>Chef de projet<br>T.+33(0)7 44 04 32 33<br>thomas@standix.fr</td></tr></tbody></table>`;
+  const quote = (when, html) => `<p>Le ${when}, thomas@standix.fr a écrit :</p><blockquote type="cite" style="padding:0 .4em;border-left:#1010ff 2px solid;margin:0">${html}</blockquote>`;
+
+  const M0 = `<div>Bonjour Yves,</div><div>Tu trouveras ci-dessous ma demande à livrer au 23 rue Boudeville avant le 6 novembre.</div>
+    <div>- 16 tablettes de 860 x 400 mm en méla blanc</div><div>- 4 tablettes de 2910 x 400 mm en méla blanc</div>
+    <div>Merci beaucoup et n'hésite surtout pas si tu as besoin d'informations supplémentaires !</div><div>Cordialement</div>` + SIG;
+  const M1_NEW = `<div>A rajouter à la commande : 2 tablettes de 990 x 200 mm en méla blanc avec 3 champs.</div><div>Merci d'avance, Thomas</div>`;
+  const M1 = M1_NEW + quote('23/10/2026 11:26', M0) + SIG;
+  const M2_NEW = `<div>Bonjour, pouvez-vous rajouter 2 tablettes supplémentaires en 990 x 200 mm ? Merci et bonne journée, Thomas</div>`;
+  const M2 = M2_NEW + quote('23/10/2026 12:49', M1) + SIG;
+  // Gmail a caché la citation derrière « ••• » (contenu abrégé).
+  const M2_TRIMMED = M2_NEW + `<div class="ajU"><div class="ajR" role="button" aria-label="Afficher le contenu abrégé" aria-expanded="false"></div></div>
+    <div class="h5">${quote('23/10/2026 12:49', M1)}${SIG}</div>`;
+  // Outlook : la réponse, puis « De : … Envoyé : … » et le message d'origine, sans citation balisée.
+  const M3 = `<div class="WordSection1"><p>Bien reçu, c'est noté pour les 990 x 200.</p><p>Éric</p>
+    <div style="border:none;border-top:solid #E1E1E1 1.0pt;padding:3.0pt 0cm 0cm 0cm"><p><b>De :</b> thomas@standix.fr<br><b>Envoyé :</b> lundi 27 octobre 2026 10:35<br><b>À :</b> Eric<br><b>Objet :</b> Re: DEMANDE POUR BPM 2026</p></div>
+    ${M2}</div>`;
+  // Transfert : contenu jamais reçu dans la conversation, il doit rester visible.
+  const M4 = `<div>Pour info, les tarifs du fournisseur.</div><div class="gmail_quote"><div class="gmail_attr">---------- Forwarded message ---------<br>De : Fournisseur Bois</div>
+    <div>Tarifs 2027 : panneau mélaminé blanc 19 mm à 42 euros le mètre carré, livraison incluse dès 20 panneaux.</div></div>`;
+
+  const single = new URLSearchParams(location.search).has('single');
+  const bodies = single ? [M2_TRIMMED] : [M0, M1, M2, M3, M4];
+  const list = document.getElementById('list');
+  bodies.forEach((html, i) => {
+    const m = document.createElement('div');
+    m.setAttribute('role', 'listitem');
+    m.className = 'h7';
+    m.dataset.index = i;
+    m.innerHTML = `<div class="adn ads"><div class="gs"><h3 class="iw"><span class="gD" name="Thomas">Thomas</span></h3>
+      <div class="ii gt"><div class="a3s aiL">${html}</div></div></div></div>`;
+    list.appendChild(m);
+  });
+})();
+</script>
+</body>
+</html>

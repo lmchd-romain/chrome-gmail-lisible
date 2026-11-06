@@ -52,7 +52,7 @@ async function main() {
 
   await context.route('https://mail.google.com/**', (route) => {
     const url = new URL(route.request().url());
-    const file = url.pathname.includes('inbox') ? 'inbox.html' : 'thread.html';
+    const file = url.pathname.includes('inbox') ? 'inbox.html' : url.pathname.includes('history') ? 'history.html' : 'thread.html';
     route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: fs.readFileSync(path.join(FIXTURES, file)) });
   });
 
@@ -120,7 +120,7 @@ async function main() {
 
   await step('réglage « noms de fichiers » désactivable à chaud', async () => {
     await setOption('hideAttachmentPlaceholders', false);
-    const body7 = () => document.querySelector('[data-index="7"] .ii.gt').innerText;
+    const body7 = () => document.querySelector('[data-index="6"] .ii.gt').innerText;
     await thread.waitForFunction((f) => eval(f)().includes('BEAR_Rennes'), body7.toString(), { timeout: 3000 });
     await setOption('hideAttachmentPlaceholders', true);
     await thread.waitForFunction((f) => !eval(f)().includes('BEAR_Rennes'), body7.toString(), { timeout: 3000 });
@@ -182,6 +182,13 @@ async function main() {
     assert.equal(info.rows.length, 5);
     assert.ok(info.rows[0].startsWith('BEAR_Rennes_6mm.pdf') && info.rows[0].includes('×2'), 'doublon compté et en premier : ' + info.rows.join(' / '));
     assert.ok(info.rows.every((r) => / · 04\/11/.test(r)), 'expéditeur et date : ' + info.rows.join(' / '));
+    const geo = await thread.evaluate(() => {
+      const p = document.querySelector('.glx-att-summary').getBoundingClientRect();
+      const c = document.querySelector('.h7 .gs').getBoundingClientRect();
+      return { dx: Math.round(p.left - c.left), width: Math.round(p.width) };
+    });
+    assert.equal(geo.dx, 0, 'aligné sur le texte des messages');
+    assert.ok(geo.width <= 640, 'largeur ' + geo.width);
     await thread.click('.glx-att-summary .glx-att-item:nth-child(1) [aria-label="Voir le message"]');
     await thread.waitForFunction(() => !!document.querySelector('.glx-flash'), null, { timeout: 2000 });
     await thread.click('.glx-att-summary-head');
@@ -210,8 +217,8 @@ async function main() {
   await step('réponse : « ••• » masqué aussi pendant la rédaction', async () => {
     await thread.click('#reply-btn');
     await thread.waitForSelector('#compose');
-    const dots = await thread.evaluate(() => getComputedStyle(document.querySelector('#compose-dots')).display);
-    assert.equal(dots, 'none');
+    const dots = await thread.evaluate(() => [getComputedStyle(document.querySelector('#compose-dots')).display, getComputedStyle(document.querySelector('#dots-wrap')).display]);
+    assert.deepEqual(dots, ['none', 'none'], 'ni les points ni leur espace vide');
   });
 
   await step('réponse : passe dans la fenêtre pop-up de Gmail quand on remonte', async () => {
@@ -295,6 +302,49 @@ async function main() {
   });
   await thread2.close();
 
+  // ---------------- Historique recopié et signatures ----------------
+  console.log('\nHistorique recopié :');
+  const hist = await openGmail('https://mail.google.com/mail/u/0/history#inbox/FMfcgzHIST');
+  const bodyText = (page, i) => page.evaluate((n) => document.querySelector(`[data-index="${n}"] .ii.gt`).innerText, i);
+  const count = (text, word) => (text.match(new RegExp(word, 'g')) || []).length;
+
+  await step('anciens messages recopiés masqués quand ils sont déjà plus haut', async () => {
+    await hist.waitForFunction(() => !!document.querySelector('.glx-quote-hidden'), null, { timeout: 4000 });
+    const t = await Promise.all([0, 1, 2, 3, 4].map((i) => bodyText(hist, i)));
+    assert.ok(t[0].includes('Bonjour Yves'), 'le 1er message reste entier');
+    assert.ok(t[1].includes('A rajouter') && !t[1].includes('Bonjour Yves') && !t[1].includes('a écrit'), 'message 2 : ' + t[1]);
+    assert.ok(t[2].includes('supplémentaires') && !t[2].includes('A rajouter') && !t[2].includes('Bonjour Yves'), 'message 3 : ' + t[2]);
+    assert.ok(t[3].includes('Bien reçu') && !t[3].includes('supplémentaires') && !t[3].includes('Envoyé'), 'message Outlook : ' + t[3]);
+    assert.ok(t[4].includes('Tarifs 2027'), 'un transfert jamais reçu reste visible');
+    for (const i of [0, 1, 2]) assert.equal(count(t[i], 'Thomas FERNANDEZ'), 1, 'une signature dans le message ' + i);
+    await shot(hist, 'historique');
+  });
+
+  await step('réglage « historique » désactivable à chaud', async () => {
+    await setOption('hideQuotedHistory', false);
+    await hist.waitForFunction(() => document.querySelector('[data-index="1"] .ii.gt').innerText.includes('Bonjour Yves'), null, { timeout: 3000 });
+    await setOption('hideQuotedHistory', true);
+    await hist.waitForFunction(() => !document.querySelector('[data-index="1"] .ii.gt').innerText.includes('Bonjour Yves'), null, { timeout: 3000 });
+  });
+  await hist.close();
+
+  const single = await openGmail('https://mail.google.com/mail/u/0/history?single=1#inbox/FMfcgzHIST2');
+  await step('historique jamais reçu : affiché même si Gmail l’a caché, une seule signature', async () => {
+    await single.waitForFunction(() => document.querySelector('[data-index="0"] .ii.gt').innerText.includes('Bonjour Yves'), null, { timeout: 4000 });
+    const t = await bodyText(single, 0);
+    assert.ok(t.includes('A rajouter') && t.includes('supplémentaires'), 'toute la commande est visible');
+    assert.equal(count(t, 'Thomas FERNANDEZ'), 1, 'signatures empilées : ' + count(t, 'Thomas FERNANDEZ'));
+    await shot(single, 'historique-jamais-recu');
+  });
+
+  await step('réglage « une seule signature » désactivable à chaud', async () => {
+    await setOption('hideRepeatedSignatures', false);
+    await single.waitForFunction(() => (document.querySelector('[data-index="0"] .ii.gt').innerText.match(/Thomas FERNANDEZ/g) || []).length === 3, null, { timeout: 3000 });
+    await setOption('hideRepeatedSignatures', true);
+    await single.waitForFunction(() => (document.querySelector('[data-index="0"] .ii.gt').innerText.match(/Thomas FERNANDEZ/g) || []).length === 1, null, { timeout: 3000 });
+  });
+  await single.close();
+
   // ---------------- Boîte de réception ----------------
   console.log('\nBoîte de réception :');
   const inbox = await openGmail('https://mail.google.com/mail/u/0/inbox#inbox');
@@ -370,6 +420,8 @@ async function main() {
     assert.deepEqual(Object.fromEntries(state.switches), {
       autoExpand: true,
       hideTrimmedButton: true,
+      hideQuotedHistory: true,
+      hideRepeatedSignatures: true,
       hideAttachmentPlaceholders: true,
       floatingReply: true,
       dockReplyAtBottom: true,
@@ -419,11 +471,27 @@ async function main() {
     }
     await inbox.waitForFunction(() => window.__fake.page === 1, null, { timeout: 3000 });
     await inbox.waitForTimeout(300);
-    const atBottom = await inbox.evaluate(() => {
+    // (les derniers crans de molette continuent de faire remonter un peu : c'est voulu)
+    const fromBottom = await inbox.evaluate(() => {
       const s = document.getElementById('scroller');
-      return s.scrollHeight - s.scrollTop - s.clientHeight <= 4;
+      return s.scrollHeight - s.scrollTop - s.clientHeight;
     });
-    assert.equal(atBottom, true, 'en remontant, on arrive en bas de la page précédente');
+    assert.ok(fromBottom <= 400, 'en remontant, on arrive en bas de la page précédente (' + fromBottom + ' px du bas)');
+  });
+
+  await step('défilement continu sans libellés de boutons (adresse #inbox/p2)', async () => {
+    const plain = await openGmail('https://mail.google.com/mail/u/0/inbox?nolabels=1#inbox');
+    await plain.bringToFront();
+    await plain.waitForSelector('.glx-day-sep');
+    await plain.mouse.move(800, 500);
+    await scrollTo(plain, 'bottom');
+    await plain.waitForTimeout(100);
+    for (let i = 0; i < 10 && (await plain.evaluate(() => window.__fake.page)) === 1; i++) {
+      await plain.mouse.wheel(0, 120);
+      await plain.waitForTimeout(90);
+    }
+    await plain.waitForFunction(() => window.__fake.page === 2 && location.hash === '#inbox/p2', null, { timeout: 4000 });
+    await plain.close();
   });
 
   await step('diagnostic copié, sans contenu personnel', async () => {

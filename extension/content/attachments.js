@@ -300,7 +300,10 @@
     // Message le plus récent d'abord, et dans un message, l'ordre de Gmail.
     const rows = [...entries.values()].sort((a, b) => b.order - a.order || a.pos - b.pos);
     const sig = [summaryOpen, summaryShowAll, ...rows.map((r) => r.info.name + '|' + r.info.size + '|' + r.count)].join('§');
-    if (old.length === 1 && old[0].dataset.sig === sig && old[0].nextElementSibling === list) return;
+    if (old.length === 1 && old[0].dataset.sig === sig && old[0].nextElementSibling === list) {
+      alignWithMessages(old[0], list, parent);
+      return;
+    }
     remove();
 
     const panel = el('div', 'glx-own glx-att-summary' + (summaryOpen ? '' : ' is-closed'));
@@ -345,6 +348,16 @@
     }
     isolate(panel);
     parent.insertBefore(panel, list);
+    alignWithMessages(panel, list, parent);
+  }
+
+  /** Aligne le récapitulatif sur le début du texte des messages (après l'avatar). */
+  function alignWithMessages(panel, list, parent) {
+    const ref = list.querySelector('.h7 .gs, .h7 div.ii.gt, .adn .gs, div.ii.gt');
+    if (!ref) return;
+    const left = Math.max(0, Math.round(ref.getBoundingClientRect().left - parent.getBoundingClientRect().left));
+    const value = left + 'px';
+    if (panel.style.getPropertyValue('--glx-left') !== value) panel.style.setProperty('--glx-left', value);
   }
 
   // ---------- Boucle ----------

@@ -8,6 +8,8 @@ Extension Chrome qui rend Gmail plus lisible.
 
 - **Déplie tous les messages**, y compris les « N messages plus anciens ». La conversation s'affiche directement dépliée, sans passer par l'état replié. Si vous repliez un message ensuite, il reste replié.
 - **Masque le bouton « Afficher le contenu abrégé »** (les trois petits points « ••• ») sous les messages et dans la zone où vous écrivez votre réponse.
+- **Masque l'historique déjà lu** : quand une réponse recopie toute la conversation précédente, la partie recopiée est cachée si elle est déjà affichée plus haut. Si vous n'aviez jamais reçu ces anciens messages (ajouté en copie en cours de route, par exemple), ils restent affichés, même si Gmail les avait cachés derrière « ••• ».
+- **Une seule signature par e-mail** : quand la même signature est empilée plusieurs fois dans un e-mail (une par réponse), une seule reste visible.
 - **Masque les noms de fichiers** du type `<BEAR_Rennes_6mm.dxf><BEAR_Rennes_6mm.pdf>` qu'Apple Mail ajoute dans le texte des réponses.
 - **Réponse en fenêtre pop-up** : après un clic sur « Répondre », si vous remontez pour relire la conversation, la réponse passe dans la fenêtre pop-up de Gmail (la vraie). Quand vous redescendez tout en bas, elle reprend sa place : Gmail l'enregistre en brouillon, puis l'extension rouvre ce brouillon dans la conversation. Votre texte est conservé.
 
@@ -19,7 +21,7 @@ Extension Chrome qui rend Gmail plus lisible.
 
 **Dans la boîte de réception** (et les libellés, recherches…)
 
-- **Défilement continu** : arrivé en bas de la liste, continuez à faire défiler, et la page suivante s'affiche toute seule. Tout en haut, continuez vers le haut pour revenir aux e-mails plus récents.
+- **Défilement continu** : arrivé en bas de la liste, continuez à faire défiler, et la page suivante s'affiche toute seule. Tout en haut, continuez vers le haut pour revenir aux e-mails plus récents. (Gmail sur ordinateur n'a pas de bouton « Afficher plus » : seulement les flèches ‹ › et 100 e-mails par page au maximum.)
 - **Séparateurs de dates** entre les e-mails, sauf dans la section « Messages suivis ». Deux modes au choix :
   - *Chaque jour* : « Aujourd'hui », « Hier », « 04/11 », « 03/11 »…
   - *Regrouper* : « Aujourd'hui », « Hier », « Cette semaine », « Semaine dernière », « Octobre »…

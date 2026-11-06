@@ -15,9 +15,10 @@
 
   const OLDER = ['plus anciens', 'plus anciennes', 'older', 'altere', 'mas antiguos', 'meno recenti', 'mais antigos', 'ouder'];
   const NEWER = ['plus recents', 'plus recentes', 'newer', 'neuere', 'mas recientes', 'piu recenti', 'mais recentes', 'nieuwer'];
-  const THRESHOLD = 360; // « force » de défilement à accumuler (≈ 3 crans de molette)
-  const SETTLE_MS = 300; // il faut être arrivé au bord depuis ce délai
+  const THRESHOLD = 240; // « force » de défilement à accumuler (≈ 2 crans de molette)
+  const SETTLE_MS = 250; // il faut être arrivé au bord depuis ce délai
   const COOLDOWN_MS = 1500;
+  const COUNTER_RE = /(\d[\d\s\u00a0\u202f.,]*)\s*[–—-]\s*(\d[\d\s\u00a0\u202f.,]*)\s+(?:sur|of|de|von|di|van)\s+(?:environ\s+|about\s+|ca\.?\s+|circa\s+)?(\d[\d\s\u00a0\u202f.,]*|plusieurs|many|viele|muchos|molti|varios|v[aá]rios|veel)/i;
 
   let push = 0;
   let pushDir = 0;
@@ -41,18 +42,44 @@
     return null;
   }
 
-  function pagerButton(words) {
-    const toolbars = [...document.querySelectorAll('[gh="tm"]')].filter((t) => GL.isVisible(t));
-    const scopes = toolbars.length ? toolbars : [document];
-    for (const scope of scopes) {
-      for (const b of scope.querySelectorAll('[role="button"][aria-label], [role="button"][data-tooltip]')) {
-        const label = GL.norm(b.getAttribute('aria-label') || b.getAttribute('data-tooltip'));
-        if (!words.includes(label) || !GL.isVisible(b)) continue;
-        const disabled = b.getAttribute('aria-disabled') === 'true' || b.classList.contains('T-I-JE');
-        return disabled ? null : b;
-      }
+  /** Compteur de Gmail « 1–50 sur 1 234 » : { from, to, total }. */
+  function readCounter() {
+    const num = (v) => (/^\D+$/.test(v) ? Infinity : parseInt(v.replace(/\D/g, ''), 10));
+    for (const el of document.querySelectorAll('[gh="tm"] span, [gh="tm"] [role="button"], .Dj, .amH')) {
+      if (el.childElementCount > 4 || !GL.isVisible(el)) continue;
+      const m = el.textContent.match(COUNTER_RE);
+      if (m) return { from: num(m[1]), to: num(m[2]), total: num(m[3]) };
     }
     return null;
+  }
+
+  /** Adresse de la page voisine : #inbox -> #inbox/p2, #label/X/p3 -> #label/X/p2… */
+  function pageHash(dir) {
+    const m = (location.hash || '#inbox').match(/^(#[^?]*?)(?:\/p(\d+))?(\?.*)?$/);
+    if (!m || m[1] === '#') return null;
+    const page = (m[2] ? parseInt(m[2], 10) : 1) + dir;
+    if (page < 1) return null;
+    return (page === 1 ? m[1] : m[1] + '/p' + page) + (m[3] || '');
+  }
+
+  /** Comment aller à la page suivante / précédente (bouton de Gmail, sinon adresse). */
+  function pager(dir) {
+    const words = dir > 0 ? OLDER : NEWER;
+    const all = [...document.querySelectorAll('[role="button"][aria-label], [role="button"][data-tooltip], button[aria-label]')];
+    // Les boutons de la barre de la liste d'abord ; jamais ceux d'une conversation ouverte.
+    all.sort((a, b) => (b.closest('[gh="tm"]') ? 1 : 0) - (a.closest('[gh="tm"]') ? 1 : 0));
+    for (const b of all) {
+      const label = GL.norm(b.getAttribute('aria-label') || b.getAttribute('data-tooltip'));
+      if (!words.includes(label) || !GL.isVisible(b) || b.closest('.a98.iY, .if, .PeIF1d, .glx-own')) continue;
+      if (b.getAttribute('aria-disabled') === 'true' || b.classList.contains('T-I-JE')) return null; // première / dernière page
+      return { button: b, hash: pageHash(dir) };
+    }
+    const c = readCounter();
+    if (!c) return null;
+    if (dir > 0 && !(c.to < c.total)) return null;
+    if (dir < 0 && !(c.from > 1)) return null;
+    const hash = pageHash(dir);
+    return hash ? { hash } : null;
   }
 
   // ---------- Bulle d'information ----------
@@ -93,13 +120,20 @@
     return ids.join(',');
   }
 
-  async function turnPage(dir, button, scroller) {
-    cooldownUntil = Date.now() + 8000;
+  async function turnPage(dir, how, scroller) {
+    cooldownUntil = Date.now() + 9000;
     showHint(dir > 0 ? 'Chargement des e-mails plus anciens…' : 'Chargement des e-mails plus récents…', 1, scroller, dir < 0);
     const before = visibleRows();
-    GL.click(button);
-    // Gmail remplace la liste : on attend la nouvelle page.
-    const changed = await GL.waitFor(() => visibleRows() !== before, 6000);
+    let changed = null;
+    if (how.button) {
+      GL.click(how.button);
+      changed = await GL.waitFor(() => visibleRows() !== before, how.hash ? 2500 : 6000);
+    }
+    if (!changed && how.hash) {
+      // Le bouton n'a rien fait (ou est introuvable) : on passe par l'adresse de la page.
+      location.hash = how.hash;
+      changed = await GL.waitFor(() => visibleRows() !== before, 6000);
+    }
     hideHint();
     if (changed) {
       const tbody = visibleList();
@@ -108,6 +142,8 @@
       requestAnimationFrame(() => {
         sc.scrollTop = dir > 0 ? 0 : sc.scrollHeight;
       });
+    } else {
+      GL.log('changement de page impossible');
     }
     push = 0;
     edgeSince = 0;
@@ -137,8 +173,8 @@
     }
     if (now - edgeSince < SETTLE_MS) return; // élan du défilement : on ne compte pas encore
 
-    const button = pagerButton(dir > 0 ? OLDER : NEWER);
-    if (!button) return; // première / dernière page
+    const how = pager(dir);
+    if (!how) return; // première / dernière page
 
     if (pushDir !== dir || now - lastWheel > 1000) push = 0;
     pushDir = dir;
@@ -146,7 +182,7 @@
     push += Math.min(Math.abs(e.deltaY), 120);
 
     if (push >= THRESHOLD) {
-      turnPage(dir, button, scroller);
+      turnPage(dir, how, scroller);
     } else {
       showHint(dir > 0 ? 'Continuez pour les e-mails plus anciens' : 'Continuez pour les e-mails plus récents', push / THRESHOLD, scroller, dir < 0);
     }

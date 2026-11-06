@@ -155,6 +155,10 @@
     const s = GL.settings;
     toggleAttr('data-glx-hide-trimmed', s.hideTrimmedButton);
     toggleAttr('data-glx-hide-ph', s.hideAttachmentPlaceholders);
+    toggleAttr('data-glx-hide-history', s.hideQuotedHistory);
+    toggleAttr('data-glx-hide-sig', s.hideRepeatedSignatures);
+    // Ce que Gmail cache derrière « ••• » sans que vous l'ayez jamais reçu est réaffiché.
+    toggleAttr('data-glx-reveal', s.hideTrimmedButton || s.hideQuotedHistory);
   }
 
   function toggleAttr(name, on) {

@@ -13,6 +13,22 @@ html[data-glx-hide-trimmed] [role='button']:is(
   display: none !important;
 }
 
+/* … et son conteneur devenu vide dans la zone de réponse (sinon il reste un espace blanc). */
+html[data-glx-hide-trimmed] :is(.M9, .AD, [role='dialog']) :is(div, span):has(> .ajR):not(:has(> :not(.ajR, br))) {
+  display: none !important;
+}
+
+/* ---------- Historique recopié et signatures répétées ---------- */
+html[data-glx-hide-history] .glx-quote-hidden,
+html[data-glx-hide-sig] .glx-sig-dup {
+  display: none !important;
+}
+
+/* Partie cachée par Gmail (« ••• ») mais jamais reçue ailleurs : réaffichée. */
+html[data-glx-reveal] .glx-quote-show {
+  display: revert !important;
+}
+
 /* ---------- Noms de pièces jointes « <fichier.pdf> » laissés par Apple Mail ---------- */
 html[data-glx-hide-ph] .glx-att-ph,
 html[data-glx-hide-ph] .glx-att-ph-block,
@@ -229,10 +245,12 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
   max-width: 120px;
 }
 
-/* Récapitulatif en haut de la conversation. */
+/* Récapitulatif en haut de la conversation (aligné sur le texte des messages). */
 .glx-att-summary {
-  margin: 4px 0 12px;
-  padding: 4px 8px 8px;
+  box-sizing: border-box;
+  max-width: 640px;
+  margin: 4px 16px 12px var(--glx-left, 16px);
+  padding: 4px 6px 6px;
   border: 1px solid var(--glx-line);
   border-radius: 12px;
 }
@@ -298,7 +316,7 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
 }
 
 .glx-att-summary .glx-att-name {
-  max-width: 48%;
+  max-width: 260px;
 }
 
 .glx-att-summary .glx-att-item.is-extra {
