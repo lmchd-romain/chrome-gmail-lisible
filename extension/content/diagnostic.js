@@ -197,6 +197,31 @@
     return section('Listes d’e-mails', lines);
   }
 
+  function scrollPart() {
+    const lines = [];
+    const t = GL.scrollTrace;
+    if (t) {
+      const ago = t.at ? Math.round((Date.now() - t.at) / 1000) + ' s' : '—';
+      lines.push('dernier essai (il y a ' + ago + ', ' + t.count + ' crans) : ' + t.reason);
+      if (t.metrics) lines.push('  zone : haut ' + t.metrics.top + ' / hauteur ' + t.metrics.height + ' / visible ' + t.metrics.view + (t.metrics.html ? ' (page entière)' : ''));
+    }
+    const sc = GL.listScroller ? GL.listScroller() : null;
+    if (sc) {
+      lines.push('zone qui défile : ' + describe(sc) + ' · overflow ' + getComputedStyle(sc).overflowY + ' · haut ' + Math.round(sc.scrollTop) + ' / hauteur ' + sc.scrollHeight + ' / visible ' + sc.clientHeight);
+    } else {
+      lines.push('zone qui défile : aucune liste affichée');
+    }
+    if (GL.listPager) {
+      for (const dir of [1, -1]) {
+        const how = GL.listPager(dir);
+        lines.push((dir > 0 ? 'page suivante' : 'page précédente') + ' : ' + (how ? (how.button ? 'bouton ' + describe(how.button) : 'sans bouton') + (how.hash ? ' · adresse ' + how.hash.split('/').slice(-1)[0] : '') : 'aucune'));
+      }
+    }
+    const c = GL.listCounter && GL.listCounter();
+    lines.push('compteur : ' + (c ? c.from + '–' + c.to + ' sur ' + c.total : 'introuvable'));
+    return section('Défilement continu', lines);
+  }
+
   function build() {
     const head = [
       '# Diagnostic Gmail Lisible',
@@ -207,7 +232,7 @@
       'réglages : ' + JSON.stringify(GL.settings),
     ];
     let text = head.join('\n');
-    for (const part of [threadPart, composePart, listPart]) {
+    for (const part of [threadPart, composePart, listPart, scrollPart]) {
       try {
         text += part();
       } catch (err) {

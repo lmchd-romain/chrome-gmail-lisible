@@ -13,8 +13,8 @@
   const GL = globalThis.GL;
   if (!GL || GL.disabled) return;
 
-  const OLDER = ['plus anciens', 'plus anciennes', 'older', 'altere', 'mas antiguos', 'meno recenti', 'mais antigos', 'ouder'];
-  const NEWER = ['plus recents', 'plus recentes', 'newer', 'neuere', 'mas recientes', 'piu recenti', 'mais recentes', 'nieuwer'];
+  const OLDER = ['plus anciens', 'plus anciennes', 'page suivante', 'older', 'next page', 'altere', 'mas antiguos', 'meno recenti', 'mais antigos', 'ouder'];
+  const NEWER = ['plus recents', 'plus recentes', 'page precedente', 'newer', 'previous page', 'neuere', 'mas recientes', 'piu recenti', 'mais recentes', 'nieuwer'];
   const THRESHOLD = 240; // « force » de défilement à accumuler (≈ 2 crans de molette)
   const SETTLE_MS = 250; // il faut être arrivé au bord depuis ce délai
   const COOLDOWN_MS = 1500;
@@ -28,6 +28,45 @@
   let cooldownUntil = 0;
   let hint = null;
   let hintTimer = 0;
+  let lastScrolled = null; // dernier élément que la page a réellement fait défiler
+
+  // Compte rendu du dernier essai (lu par « Copier un diagnostic »).
+  const trace = { reason: 'aucun défilement à la molette pour l’instant', at: 0, count: 0 };
+  GL.scrollTrace = trace;
+  function note(reason, sc) {
+    trace.reason = reason;
+    trace.at = Date.now();
+    trace.count++;
+    if (sc) trace.metrics = { top: Math.round(sc.scrollTop), height: sc.scrollHeight, view: sc.clientHeight, html: sc === document.scrollingElement };
+  }
+
+  document.addEventListener(
+    'scroll',
+    (e) => {
+      const t = e.target;
+      lastScrolled = t && t.nodeType === 1 ? t : document.scrollingElement;
+    },
+    { capture: true, passive: true }
+  );
+
+  /** Élément qui fait défiler la liste : celui que l'on a vu défiler, sinon déduit des styles. */
+  function listScroller(tbody) {
+    const s = lastScrolled;
+    if (s && s.isConnected && s.scrollHeight > s.clientHeight + 1 && (s === document.scrollingElement || s.contains(tbody))) return s;
+    const found = GL.findScroller(tbody);
+    if (found !== document.scrollingElement || found.scrollHeight > found.clientHeight + 1) return found;
+    // Aucun style « overflow » reconnu : premier parent qui dépasse vraiment.
+    for (let p = tbody.parentElement; p && p !== document.body; p = p.parentElement) {
+      if (p.scrollHeight > p.clientHeight + 1 && getComputedStyle(p).overflowY !== 'visible') return p;
+    }
+    return found;
+  }
+  GL.listScroller = () => {
+    const tbody = visibleList();
+    return tbody ? listScroller(tbody) : null;
+  };
+  GL.listPager = (dir) => pager(dir);
+  GL.listCounter = () => readCounter();
 
   // ---------- Liste affichée ----------
 
@@ -137,13 +176,14 @@
     hideHint();
     if (changed) {
       const tbody = visibleList();
-      const sc = tbody ? GL.findScroller(tbody) : scroller;
+      const sc = tbody ? listScroller(tbody) : scroller;
       // En remontant, on arrive en bas de la page précédente (continuité).
       requestAnimationFrame(() => {
         sc.scrollTop = dir > 0 ? 0 : sc.scrollHeight;
       });
+      note('page changée (' + (dir > 0 ? 'plus anciens' : 'plus récents') + ')');
     } else {
-      GL.log('changement de page impossible');
+      note('Gmail n’a pas changé de page (bouton : ' + (how.button ? 'oui' : 'non') + ', adresse : ' + (how.hash ? 'oui' : 'non') + ')');
     }
     push = 0;
     edgeSince = 0;
@@ -151,36 +191,38 @@
   }
 
   function onWheel(e) {
-    if (!GL.settings.infiniteScroll || e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+    if (!GL.settings.infiniteScroll) return note('réglage désactivé');
+    if (e.ctrlKey || Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
     const now = Date.now();
     if (now < cooldownUntil) return;
     const tbody = visibleList();
-    if (!tbody) return;
-    const scroller = GL.findScroller(tbody);
+    if (!tbody) return note('aucune liste d’e-mails affichée');
+    const scroller = listScroller(tbody);
     const target = e.target;
-    if (scroller !== document.scrollingElement && target && target.nodeType === 1 && !scroller.contains(target)) return;
+    if (scroller !== document.scrollingElement && target && target.nodeType === 1 && !scroller.contains(target)) return note('souris hors de la liste', scroller);
 
     const dir = e.deltaY > 0 ? 1 : -1;
     const atEdge = dir > 0 ? GL.atBottom(scroller) : scroller.scrollTop <= 0;
     if (!atEdge) {
       push = 0;
       edgeSince = 0;
-      return;
+      return note('pas encore au ' + (dir > 0 ? 'bas' : 'haut') + ' de la liste', scroller);
     }
     if (edgeDir !== dir || !edgeSince) {
       edgeDir = dir;
       edgeSince = now;
     }
-    if (now - edgeSince < SETTLE_MS) return; // élan du défilement : on ne compte pas encore
+    if (now - edgeSince < SETTLE_MS) return note('au bord, élan ignoré', scroller); // élan du défilement : on ne compte pas encore
 
     const how = pager(dir);
-    if (!how) return; // première / dernière page
+    if (!how) return note('pas de page ' + (dir > 0 ? 'suivante' : 'précédente') + ' trouvée', scroller); // première / dernière page
 
     if (pushDir !== dir || now - lastWheel > 1000) push = 0;
     pushDir = dir;
     lastWheel = now;
     push += Math.min(Math.abs(e.deltaY), 120);
 
+    note('au bord : ' + Math.round(push) + '/' + THRESHOLD, scroller);
     if (push >= THRESHOLD) {
       turnPage(dir, how, scroller);
     } else {

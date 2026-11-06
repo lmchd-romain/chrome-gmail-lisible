@@ -505,6 +505,7 @@ async function main() {
     const text = await popup.evaluate(() => window.__copied);
     assert.ok(text.startsWith('# Diagnostic Gmail Lisible'), text.slice(0, 80));
     assert.ok(text.includes('Listes d’e-mails') && text.includes('Plus anciens'), 'structure et boutons de Gmail inclus');
+    assert.ok(text.includes('## Défilement continu') && text.includes('zone qui défile : div.Tm.aeJ') && /dernier essai .*: /.test(text), 'état du défilement continu inclus');
     for (const secret of ['Devis atelier', 'x@example.com', 'Commande bois']) {
       assert.ok(!text.includes(secret), 'contenu personnel présent : ' + secret);
     }
