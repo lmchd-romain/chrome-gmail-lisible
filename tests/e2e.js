@@ -221,24 +221,42 @@ async function main() {
     assert.deepEqual(dots, ['none', 'none'], 'ni les points ni leur espace vide');
   });
 
+  const popupShown = () => {
+    const p = document.getElementById('popup');
+    return !!p && getComputedStyle(p).display !== 'none';
+  };
+
   await step('réponse : passe dans la fenêtre pop-up de Gmail quand on remonte', async () => {
     await thread.waitForTimeout(300);
-    assert.equal(await thread.evaluate(() => !!document.getElementById('popup')), false, 'pas de pop-up tant que la réponse est visible');
+    assert.equal(await thread.evaluate(popupShown), false, 'pas de pop-up tant que la réponse est visible');
     await scrollTo(thread, 'top');
-    await thread.waitForSelector('#popup', { timeout: 3000 });
+    await thread.waitForFunction(popupShown, null, { timeout: 3000 });
     const state = await thread.evaluate(() => ({ inline: !!document.querySelector('.ip.adB'), popouts: window.__fake.popouts }));
     assert.deepEqual(state, { inline: false, popouts: 1 });
     await shot(thread, 'reponse-popup');
   });
 
   await step('pop-up : on écrit, puis elle reprend sa place tout en bas (brouillon rouvert)', async () => {
-    await thread.click('#popup #editor');
+    await thread.click('#popup-editor');
     await thread.keyboard.type('Bonjour, bien reçu.');
     await thread.waitForTimeout(1300);
     await scrollTo(thread, 'bottom');
-    await thread.waitForFunction(() => !document.getElementById('popup') && window.__fake.draftReopened && document.querySelector('.ip.adB #editor'), null, { timeout: 6000 });
-    const text = await thread.evaluate(() => document.querySelector('.ip.adB #editor').textContent);
+    await thread.waitForFunction((f) => !eval(f)() && window.__fake.draftReopened === 1 && document.querySelector('#draft-open #editor'), popupShown.toString(), { timeout: 6000 });
+    const text = await thread.evaluate(() => document.querySelector('#draft-open #editor').textContent);
     assert.equal(text, 'Bonjour, bien reçu.');
+  });
+
+  await step('2e et 3e tours : la pop-up revient à chaque fois qu’on remonte', async () => {
+    for (const round of [2, 3]) {
+      await thread.waitForTimeout(1700);
+      await scrollTo(thread, 'top');
+      await thread.waitForFunction((r) => window.__fake.popouts === r, round, { timeout: 4000 });
+      const text = await thread.evaluate(() => document.getElementById('popup-editor').textContent);
+      assert.equal(text, 'Bonjour, bien reçu.', 'texte conservé (tour ' + round + ')');
+      await thread.waitForTimeout(1300);
+      await scrollTo(thread, 'bottom');
+      await thread.waitForFunction((r) => window.__fake.draftReopened === r && document.querySelector('#draft-open #editor'), round, { timeout: 6000 });
+    }
   });
 
   await step('pop-up vide : une réponse vide se rouvre en bas', async () => {
@@ -247,10 +265,10 @@ async function main() {
     await thread.waitForSelector('.ip.adB #compose');
     await thread.waitForTimeout(1700);
     await scrollTo(thread, 'top');
-    await thread.waitForSelector('#popup', { timeout: 3000 });
+    await thread.waitForFunction(popupShown, null, { timeout: 3000 });
     await thread.waitForTimeout(1300);
     await scrollTo(thread, 'bottom');
-    await thread.waitForFunction(() => !document.getElementById('popup') && document.querySelector('.ip.adB #compose'), null, { timeout: 5000 });
+    await thread.waitForFunction((f) => !eval(f)() && document.querySelector('.ip.adB #compose'), popupShown.toString(), { timeout: 5000 });
     const text = await thread.evaluate(() => document.querySelector('.ip.adB #editor').textContent);
     assert.equal(text, '');
   });
@@ -259,12 +277,29 @@ async function main() {
     await setOption('dockReplyAtBottom', false);
     await thread.waitForTimeout(1700);
     await scrollTo(thread, 'top');
-    await thread.waitForSelector('#popup', { timeout: 3000 });
+    await thread.waitForFunction(popupShown, null, { timeout: 3000 });
     await thread.waitForTimeout(1300);
     await scrollTo(thread, 'bottom');
     await thread.waitForTimeout(1500);
-    assert.equal(await thread.evaluate(() => !!document.getElementById('popup')), true);
+    assert.equal(await thread.evaluate(popupShown), true);
     await setOption('dockReplyAtBottom', true);
+  });
+
+  await step('diagnostic : état de la réponse pop-up et journal', async () => {
+    await popup.evaluate(() => {
+      navigator.clipboard.writeText = async (t) => {
+        window.__copied = t;
+      };
+    });
+    await thread.bringToFront();
+    const text = await popup.evaluate(async () => {
+      window.__copied = '';
+      document.getElementById('diag').click();
+      for (let i = 0; i < 40 && !window.__copied; i++) await new Promise((r) => setTimeout(r, 100));
+      return window.__copied;
+    });
+    assert.ok(text.includes('## Réponse pop-up') && text.includes('## Journal'), 'sections présentes');
+    assert.ok(text.includes('réponse passée en fenêtre pop-up'), 'journal des actions');
   });
   await thread.close();
 

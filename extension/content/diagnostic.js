@@ -160,6 +160,31 @@
     return section('Rédaction', lines.slice(0, 400));
   }
 
+  function replyPart() {
+    const lines = [];
+    if (!GL.replyState) return section('Réponse pop-up', lines);
+    const st = GL.replyState();
+    lines.push('réponse dans la conversation : ' + (st.found ? 'oui' : 'non'));
+    if (st.found) {
+      lines.push('  conteneur : ' + describe(st.found.host));
+      lines.push('  carte : ' + describe(st.found.card));
+      lines.push('  chemin : ' + path(st.found.card, document.body).split('\n').slice(-6).join('\n'));
+    }
+    lines.push('bouton « fenêtre pop-up » : ' + (st.popoutButton ? describe(st.popoutButton) : 'introuvable'));
+    lines.push('fenêtre ouverte par l’extension : ' + (st.popped ? describe(st.popped) : 'non'));
+    lines.push('zone de défilement : ' + (st.scroller ? describe(st.scroller) : '?') + ' · part visible ' + st.ratio + ' · en bas ' + st.atBottom);
+    lines.push('occupé : ' + st.busy + ' · attente ' + st.cooldown + ' ms');
+    if (st.found) {
+      lines.push('\nBoutons autour de la réponse :');
+      const scope = st.found.card.closest('[role="listitem"]') || st.found.host;
+      for (const b of scope.querySelectorAll('[role="button"][aria-label], [role="button"][data-tooltip], button[aria-label]')) {
+        lines.push('  ' + describe(b));
+        if (lines.length > 80) break;
+      }
+    }
+    return section('Réponse pop-up', lines);
+  }
+
   function listPart() {
     const lines = [];
     const bodies = new Set([...document.querySelectorAll('tr.zA')].map((r) => r.parentElement));
@@ -232,13 +257,14 @@
       'réglages : ' + JSON.stringify(GL.settings),
     ];
     let text = head.join('\n');
-    for (const part of [threadPart, composePart, listPart, scrollPart]) {
+    for (const part of [threadPart, composePart, replyPart, listPart, scrollPart]) {
       try {
         text += part();
       } catch (err) {
         text += '\n(erreur : ' + err.message + ')\n';
       }
     }
+    text += section('Journal', GL.traces.slice(-25));
     if (text.length > MAX_LEN) text = text.slice(0, MAX_LEN) + '\n… (tronqué)';
     return text;
   }

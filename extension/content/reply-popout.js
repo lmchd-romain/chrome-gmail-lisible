@@ -10,6 +10,7 @@
  * on ferme la fenêtre avec la croix de Gmail (qui enregistre le brouillon),
  * puis on rouvre ce brouillon dans la conversation. Si la réponse était vide,
  * Gmail la supprime : on rouvre alors simplement une réponse vide.
+ * Le cycle peut se répéter autant de fois que vous voulez.
  * On n'agit que sur une fenêtre ouverte par l'extension.
  */
 (function () {
@@ -18,33 +19,49 @@
   const GL = globalThis.GL;
   if (!GL || GL.disabled) return;
 
+  const NAME = 'réponse pop-up';
   const POP_BELOW = 0.35; // part visible de la réponse sous laquelle elle passe en pop-up
   const POPUP = '.AD, [role="dialog"]';
   const POPOUT_RE = /\bpop ?up\b|\bpop ?out\b|\bpopup\b/;
   const CLOSE_LABELS = ['enregistrer et fermer', 'fermer', 'save & close', 'save and close', 'close', 'speichern und schliessen', 'guardar y cerrar', 'salva e chiudi'];
 
-  let inline = null; // réponse ouverte dans la conversation : { host, card, scroller, threadKey }
-  let popped = null; // fenêtre pop-up ouverte par l'extension : { root, threadKey, scroller, at, replyButton }
+  let inline = null; // réponse ouverte dans la conversation : { host, card, threadKey }
+  let popped = null; // fenêtre pop-up ouverte par l'extension : { root, threadKey, at, replyButton }
   let userScrolled = false;
   let direction = 0; // 1 = vers le bas, -1 = vers le haut
   const lastTop = new WeakMap();
   let busy = false;
   let cooldownUntil = 0;
   let lastReplyButton = null; // dernier bouton « Répondre / Répondre à tous / Transférer » cliqué
+  let lastProblem = '';
+
+  function problem(msg) {
+    if (msg !== lastProblem) GL.trace(NAME, msg); // une seule fois de suite par problème
+    lastProblem = msg;
+  }
 
   // ---------- Repérage ----------
 
+  /** Zone de défilement de la conversation affichée (recalculée à chaque fois). */
+  function threadScroller(fallbackEl) {
+    const list = GL.visibleThreadList();
+    return GL.findScroller(list || fallbackEl);
+  }
+
+  function isScrollable(sc) {
+    return sc.scrollHeight > sc.clientHeight + 1;
+  }
+
+  /** Éditeur de réponse ouvert dans la conversation (pas dans une fenêtre pop-up). */
   function findInlineReply() {
-    for (const host of document.querySelectorAll('.ip.adB')) {
-      const card = host.querySelector('.M9') || host.firstElementChild;
-      if (card && card.querySelector(GL.EDITOR) && GL.isVisible(host)) return { host, card };
-    }
-    for (const editor of document.querySelectorAll(GL.EDITOR)) {
-      if (editor.closest(POPUP + ', .glx-own')) continue;
-      const card = editor.closest('.M9');
-      if (!card || !card.closest('[role="main"], .AO')) continue;
-      const host = card.closest('.ip') || card.parentElement;
-      if (host && GL.isVisible(host)) return { host, card };
+    const list = GL.visibleThreadList();
+    const scope = list ? GL.threadScope(list) || list : null;
+    if (!scope) return null;
+    for (const editor of scope.querySelectorAll(GL.EDITOR)) {
+      if (editor.closest(POPUP + ', .glx-own') || !GL.isVisible(editor)) continue;
+      const card = editor.closest('.M9') || editor.closest('.ip') || editor.parentElement;
+      const host = card.closest('.ip') || card;
+      if (GL.isVisible(host)) return { host, card };
     }
     return null;
   }
@@ -54,15 +71,20 @@
   }
 
   function findPopoutButton(c) {
-    const scope = c.host;
-    for (const el of scope.querySelectorAll('[role="button"], button, [data-tooltip]')) {
-      if (POPOUT_RE.test(labelOf(el))) return el;
+    // La réponse elle-même, puis le message qui la contient (brouillon rouvert…).
+    const scopes = [c.host, c.card.closest('.adn'), c.card.closest('[role="listitem"]')].filter(Boolean);
+    for (const scope of scopes) {
+      for (const el of scope.querySelectorAll('[role="button"], button, [data-tooltip]')) {
+        if (!el.closest(POPUP) && POPOUT_RE.test(labelOf(el))) return el;
+      }
     }
     // Menu « type de réponse » : son dernier choix est « Ouvrir dans une fenêtre pop-up ».
-    for (const el of scope.querySelectorAll('[role="menuitem"]')) {
-      if (POPOUT_RE.test(GL.norm(el.textContent) + ' ' + labelOf(el))) return el;
+    for (const scope of scopes) {
+      for (const el of scope.querySelectorAll('[role="menuitem"]')) {
+        if (POPOUT_RE.test(GL.norm(el.textContent) + ' ' + labelOf(el))) return el;
+      }
     }
-    return scope.querySelector('.M9 > [role=menu]:first-child > .SK > [role=menuitem]:last-child');
+    return c.host.querySelector('.M9 > [role=menu]:first-child > .SK > [role=menuitem]:last-child');
   }
 
   function popupRoot(el) {
@@ -71,6 +93,15 @@
       if (p.matches && p.matches(POPUP)) root = p;
     }
     return root;
+  }
+
+  /** Fenêtres de rédaction affichées (Gmail peut réutiliser une fenêtre fermée). */
+  function visiblePopups() {
+    const roots = new Set();
+    for (const p of document.querySelectorAll(POPUP)) {
+      if (p.querySelector(GL.EDITOR) && GL.isVisible(p)) roots.add(popupRoot(p));
+    }
+    return [...roots];
   }
 
   /** Croix de la barre de titre (« Enregistrer et fermer »), jamais la corbeille. */
@@ -100,9 +131,8 @@
     );
   }
 
-  function visibleRatio(c) {
-    const h = c.host.getBoundingClientRect();
-    const sc = c.scroller;
+  function visibleRatio(host, sc) {
+    const h = host.getBoundingClientRect();
     const docScroller = sc === document.scrollingElement || sc === document.documentElement;
     const r = docScroller ? { top: 0, bottom: innerHeight } : sc.getBoundingClientRect();
     const top = Math.max(0, r.top);
@@ -114,72 +144,71 @@
   // ---------- Actions ----------
 
   async function popOut(c) {
-    const btn = findPopoutButton(c);
-    if (!btn) {
-      GL.log('bouton « fenêtre pop-up » introuvable');
-      cooldownUntil = Date.now() + 5000;
-      return;
-    }
     busy = true;
-    const before = new Set(document.querySelectorAll(POPUP));
-    GL.click(btn);
-    const popup = await GL.waitFor(
-      () => [...document.querySelectorAll(POPUP)].find((p) => !before.has(p) && p.querySelector(GL.EDITOR)),
-      3000,
-    );
-    if (popup) {
-      popped = {
-        root: popupRoot(popup),
-        threadKey: c.threadKey,
-        scroller: c.scroller,
-        at: Date.now(),
-        replyButton: lastReplyButton,
-      };
-    } else {
-      GL.log("la fenêtre pop-up n'est pas apparue");
+    try {
+      const btn = findPopoutButton(c);
+      if (!btn) {
+        problem('bouton « fenêtre pop-up » introuvable');
+        cooldownUntil = Date.now() + 4000;
+        return;
+      }
+      const before = new Set(visiblePopups());
+      GL.click(btn);
+      const popup = await GL.waitFor(() => visiblePopups().find((p) => !before.has(p)), 3000);
+      if (popup) {
+        popped = { root: popup, threadKey: c.threadKey, at: Date.now(), replyButton: lastReplyButton };
+        lastProblem = '';
+        GL.trace(NAME, 'réponse passée en fenêtre pop-up');
+      } else {
+        problem("clic sur « fenêtre pop-up » sans effet");
+      }
+    } finally {
+      inline = null;
+      busy = false;
+      cooldownUntil = Math.max(cooldownUntil, Date.now() + 1200);
     }
-    inline = null;
-    busy = false;
-    cooldownUntil = Date.now() + 1200;
   }
 
   async function dockBack(p) {
-    const close = findCloseButton(p.root);
-    if (!close) {
-      GL.log('bouton « fermer » de la fenêtre introuvable');
-      popped = null;
-      return;
-    }
     busy = true;
     popped = null;
-    const content = hasUserContent(p.root);
-    GL.click(close); // croix de Gmail : enregistre le brouillon et ferme la fenêtre
-    await GL.waitFor(() => !p.root.isConnected || !GL.isVisible(p.root), 3000);
+    try {
+      const close = findCloseButton(p.root);
+      if (!close) {
+        problem('bouton « fermer » de la fenêtre introuvable');
+        return;
+      }
+      const content = hasUserContent(p.root);
+      GL.click(close); // croix de Gmail : enregistre le brouillon et ferme la fenêtre
+      await GL.waitFor(() => !p.root.isConnected || !GL.isVisible(p.root), 3000);
 
-    // Le brouillon réapparaît dans la conversation : on le rouvre à sa place.
-    const draft = await GL.waitFor(() => {
-      const list = GL.visibleThreadList();
-      const items = list ? draftItems(list) : [];
-      return items[items.length - 1] || null;
-    }, content ? 8000 : 1500, 150);
+      // Le brouillon réapparaît dans la conversation : on le rouvre à sa place.
+      const draft = await GL.waitFor(() => {
+        const list = GL.visibleThreadList();
+        const items = list ? draftItems(list) : [];
+        return items[items.length - 1] || null;
+      }, content ? 8000 : 1500, 150);
 
-    if (draft) {
-      GL.click(draft.querySelector('.adf.ads, .adf') || draft);
-    } else if (!content) {
-      // Réponse vide (Gmail l'a supprimée) : on rouvre une réponse vide.
-      const btn = findReplyButton(p.replyButton);
-      if (btn) GL.click(btn);
-    } else {
-      GL.log('brouillon enregistré, mais introuvable dans la conversation');
+      if (draft) {
+        GL.click(draft.querySelector('.adf.ads, .adf') || draft);
+      } else if (!content) {
+        // Réponse vide (Gmail l'a supprimée) : on rouvre une réponse vide.
+        const btn = findReplyButton(p.replyButton);
+        if (btn) GL.click(btn);
+      } else {
+        problem('brouillon enregistré, mais introuvable dans la conversation');
+        return;
+      }
+
+      const back = await GL.waitFor(() => findInlineReply(), 4000);
+      if (!back) problem('réponse rouverte introuvable dans la conversation');
+      else GL.trace(NAME, 'réponse remise dans la conversation');
+      const sc = threadScroller(p.root);
+      if (sc && isScrollable(sc)) sc.scrollTop = sc.scrollHeight;
+    } finally {
+      busy = false;
+      cooldownUntil = Date.now() + 1500;
     }
-
-    if (draft || !content) {
-      await GL.waitFor(() => findInlineReply(), 3000);
-      const sc = p.scroller && p.scroller.isConnected ? p.scroller : null;
-      if (sc) sc.scrollTop = sc.scrollHeight;
-    }
-    busy = false;
-    cooldownUntil = Date.now() + 1500;
   }
 
   // ---------- Boutons « Répondre » du bas de la conversation ----------
@@ -224,16 +253,16 @@
 
     // 1. Fenêtre pop-up ouverte par l'extension : faut-il la remettre en place ?
     if (popped) {
-      if (!popped.root.isConnected) {
+      if (!popped.root.isConnected || !GL.isVisible(popped.root)) {
         popped = null; // envoyée, fermée ou supprimée par vous
-      } else if (s.dockReplyAtBottom && now > cooldownUntil && now - popped.at > 1200 && direction > 0) {
-        const list = GL.visibleThreadList();
-        const sc = popped.scroller;
-        if (list && GL.threadKey(list) === popped.threadKey && sc && sc.isConnected && GL.atBottom(sc)) {
-          dockBack(popped);
+      } else {
+        if (s.dockReplyAtBottom && now > cooldownUntil && now - popped.at > 1200 && direction > 0) {
+          const list = GL.visibleThreadList();
+          const sc = list && GL.findScroller(list);
+          if (list && GL.threadKey(list) === popped.threadKey && sc && GL.atBottom(sc)) dockBack(popped);
         }
+        return;
       }
-      return;
     }
 
     // 2. Réponse ouverte dans la conversation : faut-il la passer en pop-up ?
@@ -242,18 +271,14 @@
       inline = null;
       return;
     }
-    if (!inline || inline.card !== found.card) {
+    if (!inline || inline.card !== found.card || inline.host !== found.host) {
       const list = GL.visibleThreadList();
-      inline = {
-        host: found.host,
-        card: found.card,
-        scroller: GL.findScroller(found.host),
-        threadKey: list ? GL.threadKey(list) : location.hash,
-      };
+      inline = { host: found.host, card: found.card, threadKey: list ? GL.threadKey(list) : location.hash };
       userScrolled = false; // on attend que vous fassiez défiler la conversation
     }
     if (!userScrolled || direction >= 0 || now < cooldownUntil) return;
-    if (visibleRatio(inline) < POP_BELOW && !GL.atBottom(inline.scroller)) popOut(inline);
+    const sc = threadScroller(found.host);
+    if (visibleRatio(found.host, sc) < POP_BELOW && !(isScrollable(sc) && GL.atBottom(sc))) popOut(inline);
   }
 
   function onScroll(e) {
@@ -276,5 +301,21 @@
 
   window.addEventListener('scroll', onScroll, { capture: true, passive: true });
 
-  GL.register({ name: 'réponse pop-up', update: evaluate });
+  // État courant, repris dans le diagnostic.
+  GL.replyState = () => {
+    const found = findInlineReply();
+    const sc = found ? threadScroller(found.host) : null;
+    return {
+      found,
+      popoutButton: found ? findPopoutButton(found) : null,
+      popped: popped && popped.root,
+      scroller: sc,
+      ratio: found && sc ? Math.round(visibleRatio(found.host, sc) * 100) / 100 : null,
+      atBottom: sc ? GL.atBottom(sc) : null,
+      busy,
+      cooldown: Math.max(0, cooldownUntil - Date.now()),
+    };
+  };
+
+  GL.register({ name: NAME, update: evaluate });
 })();

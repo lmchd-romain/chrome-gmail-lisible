@@ -144,7 +144,7 @@
   // Détecteur de « flash » : une image affichée où des messages repliés sont visibles.
   (function sample() {
     const list = document.getElementById('list');
-    if (list && list.querySelector('.kv:not(#draft)') && getComputedStyle(list).opacity !== '0') window.__fake.flashSeen = true;
+    if (list && list.querySelector('.kv:not([id^="draft"])') && getComputedStyle(list).opacity !== '0') window.__fake.flashSeen = true;
     requestAnimationFrame(sample);
   })();
 
@@ -170,7 +170,7 @@
 
   function openReply(text) {
     const list = document.getElementById('list');
-    const last = [...list.querySelectorAll('[role=listitem]')].filter((m) => m.id !== 'draft').pop();
+    const last = [...list.querySelectorAll('[role=listitem]')].filter((m) => !m.id.startsWith('draft')).pop();
     const ip = last.querySelector('.ip');
     ip.classList.add('adB');
     ip.innerHTML = composeHtml(text);
@@ -178,23 +178,38 @@
     document.getElementById('scroller').scrollTop = 1e9;
   }
 
+  // Comme Gmail : la fenêtre pop-up est réutilisée (cachée puis réaffichée), et un brouillon
+  // rouvert s'affiche dans son propre message, sans conteneur « .ip », bouton pop-up à côté.
+  function inlineEditor() {
+    return [...document.querySelectorAll('#list #editor')].find((e) => !e.closest('#popup')) || null;
+  }
+
   function popOut() {
+    const editor = inlineEditor();
+    const text = editor ? editor.innerHTML : '';
     const ip = document.querySelector('.ip.adB');
-    const text = document.getElementById('editor').innerHTML;
-    ip.classList.remove('adB');
-    ip.innerHTML = '';
-    document.getElementById('dw').innerHTML = `<div class="nH nn"><div class="nH Hd" role="dialog" id="popup">
-      <div class="nH Hy aXJ"><table class="cf Ht"><tbody><tr><td><div class="Hp"><h2 class="a3E">Re: Plans BEAR Rennes</h2></div></td>
-      <td class="Hm"><img class="Hl" alt="" aria-label="Réduire"><img class="Hq aUG" alt="" aria-label="Plein écran"><img class="Ha" id="popup-close" alt="" aria-label="Enregistrer et fermer"></td></tr></tbody></table></div>
-      <div class="M9"><div class="aoP"><div class="Am Al editable" id="editor" contenteditable="true" role="textbox" g_editable="true">${text}</div>
-      <div class="ajR" role="button" aria-label="Afficher le contenu abrégé"></div></div></div></div></div>`;
+    if (ip) { ip.classList.remove('adB'); ip.innerHTML = ''; }
+    const open = document.getElementById('draft-open');
+    if (open) open.remove();
+    let popup = document.getElementById('popup');
+    if (!popup) {
+      document.getElementById('dw').innerHTML = `<div class="nH nn"><div class="nH Hd" role="dialog" id="popup">
+        <div class="nH Hy aXJ"><table class="cf Ht"><tbody><tr><td><div class="Hp"><h2 class="a3E">Re: Plans BEAR Rennes</h2></div></td>
+        <td class="Hm"><img class="Hl" alt="" aria-label="Réduire"><img class="Hq aUG" alt="" aria-label="Plein écran"><img class="Ha" id="popup-close" alt="" aria-label="Enregistrer et fermer"></td></tr></tbody></table></div>
+        <div class="M9"><div class="aoP"><div class="Am Al editable" id="popup-editor" contenteditable="true" role="textbox" g_editable="true"></div>
+        <div class="ajR" role="button" aria-label="Afficher le contenu abrégé"></div></div></div></div></div>`;
+      popup = document.getElementById('popup');
+    }
+    popup.style.display = '';
+    document.getElementById('popup-editor').innerHTML = text;
     window.__fake.popouts = (window.__fake.popouts || 0) + 1;
   }
 
   function closePopup() {
-    const editor = document.querySelector('#popup #editor');
+    const editor = document.getElementById('popup-editor');
     const text = editor ? editor.innerHTML : '';
-    document.getElementById('dw').innerHTML = '';
+    document.getElementById('popup').style.display = 'none';
+    if (editor) editor.innerHTML = '';
     window.__fake.closes++;
     if (text.replace(/<[^>]*>/g, '').trim()) {
       // Gmail enregistre le brouillon : il apparaît à la fin de la conversation.
@@ -208,6 +223,18 @@
         document.getElementById('list').appendChild(d);
       }, 200);
     }
+  }
+
+  function reopenDraft(item) {
+    const text = item.dataset.text;
+    item.id = 'draft-open';
+    item.className = 'h7';
+    item.innerHTML = `<div class="adn ads"><div class="gs">
+      <div class="amB"><div role="button" class="aBi" id="popout2" aria-label="Afficher dans une fenêtre pop-up" data-tooltip="Afficher dans une fenêtre pop-up">⧉</div></div>
+      <div class="M9" id="compose"><div class="aoP"><div class="Am Al editable" id="editor" contenteditable="true" role="textbox" g_editable="true">${text}</div></div></div>
+      </div></div>`;
+    document.getElementById('editor').focus();
+    window.__fake.draftReopened = (window.__fake.draftReopened || 0) + 1;
   }
 
   document.addEventListener('mouseover', (e) => {
@@ -249,14 +276,7 @@
       return;
     }
     const draft = t.closest('#draft .adf');
-    if (draft) {
-      const item = draft.closest('#draft');
-      const text = item.dataset.text;
-      item.remove();
-      openReply(text);
-      window.__fake.draftReopened = true;
-      return;
-    }
+    if (draft) return reopenDraft(draft.closest('#draft'));
     const adf = t.closest('.kv .adf');
     if (adf) {
       window.__fake.headerClicks++;
@@ -264,7 +284,7 @@
       setTimeout(() => expand(msg), 100);
       return;
     }
-    if (t.closest('#popout')) return popOut();
+    if (t.closest('#popout, #popout2')) return popOut();
     if (t.closest('#popup-close')) return closePopup();
     if (t.closest('#reply-btn')) openReply('');
   });
@@ -273,6 +293,7 @@
   window.__closeReply = () => {
     const ip = document.querySelector('.ip.adB');
     if (ip) { ip.classList.remove('adB'); ip.innerHTML = ''; }
+    document.querySelectorAll('#draft-open, #draft').forEach((d) => d.remove());
   };
 
   // Gmail affiche la conversation un peu après le chargement de la page.

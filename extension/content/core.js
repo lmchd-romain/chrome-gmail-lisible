@@ -93,6 +93,14 @@
       console.debug('[Gmail Lisible]', ...args);
     },
 
+    /** Petit journal des dernières actions (repris dans le diagnostic). */
+    traces: [],
+    trace(feature, message) {
+      GL.traces.push(new Date().toISOString().slice(11, 19) + ' ' + feature + ' : ' + message);
+      if (GL.traces.length > 40) GL.traces.shift();
+      GL.log(feature + ' : ' + message);
+    },
+
     // ---------- Conversation affichée ----------
 
     threadScope(list) {
