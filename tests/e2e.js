@@ -690,6 +690,36 @@ async function main() {
     assert.equal(opened, 1, 'un onglet Gmail affiche « Personnalisation »');
   });
 
+  await step('Personnalisation : on peut descendre jusqu’en bas quand seul le contenu de Gmail défile', async () => {
+    const p = await openGmail('https://mail.google.com/mail/u/0/settings?inner=1#settings/general');
+    await p.setViewportSize({ width: 1200, height: 420 });
+    await p.waitForSelector('.glx-settings-tab', { timeout: 3000 });
+    await p.click('.glx-settings-tab');
+    await p.waitForFunction(() => {
+      const s = document.querySelector('.glx-settings');
+      return s && s.style.maxHeight && s.scrollHeight > s.clientHeight;
+    }, null, { timeout: 3000 });
+    const seen = await p.evaluate(() => {
+      const s = document.querySelector('.glx-settings');
+      s.scrollTop = s.scrollHeight;
+      const foot = s.querySelector('.glx-set-foot').getBoundingClientRect();
+      return foot.bottom <= innerHeight + 1 && foot.top >= 0;
+    });
+    assert.ok(seen, 'bas du panneau visible après défilement');
+    await p.close();
+  });
+
+  await step('Personnalisation en thème sombre : texte clair lisible', async () => {
+    const p = await openGmail('https://mail.google.com/mail/u/0/settings?dark=1#settings/general');
+    await p.waitForSelector('.glx-settings-tab', { timeout: 3000 });
+    await p.click('.glx-settings-tab');
+    await p.waitForFunction(() => document.documentElement.hasAttribute('data-glx-dark') && document.querySelector('.glx-settings'), null, { timeout: 3000 });
+    const c = await p.evaluate(() => getComputedStyle(document.querySelector('.glx-set-title')).color);
+    assert.equal(c, 'rgb(227, 227, 227)');
+    await shot(p, 'parametres-sombre');
+    await p.close();
+  });
+
   await step('aucune erreur dans la console', async () => {
     const own = errors.filter((e) => /Gmail Lisible|glx/i.test(e));
     assert.deepEqual(own, []);

@@ -63,7 +63,7 @@
     tr.className = 'zA ' + (opts.unread ? 'zE' : 'yO');
     tr.id = ':r' + (seq++);
     tr.dataset.daysAgo = daysAgo;
-    const title = opts.title || fmt.format(d);
+    const title = typeof opts.title === 'function' ? opts.title(d) : opts.title || fmt.format(d);
     const star = opts.starred ? '<span class="T-KT" title="Suivi" aria-label="Suivi"></span>' : '<span class="aXw T-KT" title="Non suivi" aria-label="Non suivi"></span>';
     tr.innerHTML = `<td class="PF xY PE"></td>
       <td class="oZ-x3 xY aid"><div class="oZ-jc T-Jo J-J5-Ji" role="checkbox" aria-checked="false"></div></td>
@@ -105,7 +105,7 @@
       makeRow(8, 9, 'Livraison'),
       makeRow(20, 9, 'Newsletter'),
       makeRow(40, 9, 'Ancien devis'),
-      makeRow(400, 9, 'Très ancien', { title: 'Thu, Oct 2, 2025 at 9:05 AM' }),
+      makeRow(400, 9, 'Très ancien', { title: (d) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + ' at 9:05 AM' }),
     ];
   }
 

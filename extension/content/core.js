@@ -170,14 +170,38 @@
     toggleAttr('data-glx-dark', isDarkTheme());
   }
 
-  // Thème de Gmail : sombre si le texte de la page est clair (thèmes sombres ou à image sombre).
+  // Thème de Gmail : sombre si le fond derrière le contenu est foncé ; avec un thème
+  // à image (pas de couleur de fond), si le texte de Gmail est clair.
+  function lum(color) {
+    const m = String(color).match(/[\d.]+/g);
+    if (!m || m.length < 3) return null;
+    const a = m.length > 3 ? Number(m[3]) : 1;
+    return { l: 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2], a };
+  }
+
+  GL.themeInfo = () => {
+    const start =
+      document.querySelector('.glx-settings') ||
+      [...document.querySelectorAll('tr.zA, .h7, [role="main"]')].find((e) => GL.isVisible(e)) ||
+      document.body;
+    if (!start) return { dark: false, how: 'page vide' };
+    const text = lum(getComputedStyle(start.parentElement || start).color);
+    for (let el = start; el && el.nodeType === 1; el = el.parentElement) {
+      const cs = getComputedStyle(el);
+      const bg = lum(cs.backgroundColor);
+      if (bg && bg.a >= 0.5) return { dark: bg.l < 128, how: 'fond ' + cs.backgroundColor + ' (' + el.tagName.toLowerCase() + ')' };
+      if (cs.backgroundImage && cs.backgroundImage !== 'none' && !/gradient/.test(cs.backgroundImage)) break;
+    }
+    const dark = !!text && text.l > 140;
+    return { dark, how: 'texte ' + (text ? Math.round(text.l) : '?') };
+  };
+
   function isDarkTheme() {
-    const el = document.querySelector('[role="main"]') || document.body;
-    if (!el) return false;
-    const m = getComputedStyle(el).color.match(/[\d.]+/g);
-    if (!m || m.length < 3) return false;
-    const [r, g, b] = m.map(Number);
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 140;
+    try {
+      return GL.themeInfo().dark;
+    } catch (err) {
+      return false;
+    }
   }
 
   function toggleAttr(name, on) {

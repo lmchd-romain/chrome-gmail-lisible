@@ -295,6 +295,26 @@
     if (!content && hiddenNodes.length === 0) GL.trace('paramètres', 'contenu de l’onglet de Gmail introuvable');
     hiddenNodes = nodes;
     fill(panel);
+    fitPanel();
+  }
+
+  /**
+   * Si la zone de défilement de Gmail fait partie de ce qu'on cache, le panneau
+   * défile lui-même, dans la hauteur qui reste à l'écran.
+   */
+  function fitPanel() {
+    let bottom = window.innerHeight;
+    let scrolls = false;
+    for (let p = panel.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+      const oy = getComputedStyle(p).overflowY;
+      if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') {
+        scrolls = true;
+        break;
+      }
+      if (oy !== 'visible') bottom = Math.min(bottom, p.getBoundingClientRect().bottom);
+    }
+    const want = scrolls ? '' : Math.max(160, Math.floor(bottom - panel.getBoundingClientRect().top - 8)) + 'px';
+    if (panel.style.maxHeight !== want) panel.style.maxHeight = want;
   }
 
   function closePanel() {

@@ -246,6 +246,14 @@
     lines.push('\nBarre d’onglets :');
     lines.push('    > ' + path(st.tabs.root, document.body).split('\n').slice(-5).join('\n'));
     tree(st.tabs.root, 5, 20, lines);
+    const panel = document.querySelector('.glx-settings');
+    if (panel) {
+      lines.push('\nPanneau : hauteur ' + panel.clientHeight + '/' + panel.scrollHeight + ' · max ' + (panel.style.maxHeight || 'aucune') + ' · ancêtres :');
+      for (let p = panel.parentElement, i = 0; p && i < 12; p = p.parentElement, i++) {
+        const cs = getComputedStyle(p);
+        lines.push('    ' + describe(p) + ' {overflow ' + cs.overflowY + ', h ' + p.clientHeight + '}');
+      }
+    }
     return section('Paramètres', lines);
   }
 
@@ -257,6 +265,7 @@
       'langue : ' + GL.lang() + ' · fenêtre : ' + innerWidth + '×' + innerHeight,
       'vue : ' + (location.hash.split('/')[0] || '#') + (location.hash.indexOf('/') > 0 ? '/…' : ''),
       'réglages : ' + JSON.stringify(GL.settings),
+      'thème : ' + (GL.themeInfo ? (function (t) { return (t.dark ? 'sombre' : 'clair') + ' (' + t.how + ')'; })(GL.themeInfo()) : '?'),
     ];
     let text = head.join('\n');
     for (const part of [settingsPart, threadPart, composePart, replyPart, listPart]) {

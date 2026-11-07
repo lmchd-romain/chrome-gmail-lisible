@@ -27,6 +27,19 @@
 </div>
 <script>
 (function () {
+  // ?inner=1 : comme le vrai Gmail, seul le contenu de l'onglet défile.
+  if (/inner=1/.test(location.search)) {
+    document.getElementById('scroller').style.overflowY = 'hidden';
+    const c = document.getElementById('content');
+    c.style.height = 'calc(100vh - 160px)';
+    c.style.overflowY = 'auto';
+  }
+  // ?dark=1 : thème sombre (Gmail met son texte en clair sur les blocs, pas partout).
+  if (/dark=1/.test(location.search)) {
+    document.body.style.background = '#1f1f1f';
+    document.getElementById('scroller').style.background = '#1f1f1f';
+    document.getElementById('content').style.color = '#e3e3e3';
+  }
   const TABS = [
     ['general', 'Général'], ['labels', 'Libellés'], ['inbox', 'Boîte de réception'], ['accounts', 'Comptes et importation'],
     ['filters', 'Filtres et adresses bloquées'], ['fwdandpop', 'Transfert et POP/IMAP'], ['addons', 'Modules complémentaires'],
