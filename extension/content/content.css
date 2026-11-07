@@ -11,7 +11,7 @@ html[data-glx-dark] {
 }
 
 /* Thème sombre : notre texte est forcé en clair (Gmail ne le donne pas toujours). */
-html[data-glx-dark] :is(.glx-settings, .glx-att-bar, .glx-att-summary, td.glx-day-sep-cell) {
+html[data-glx-dark] :is(.glx-att-bar, .glx-att-summary, td.glx-day-sep-cell) {
   color: #e3e3e3 !important;
   color-scheme: dark;
 }
@@ -375,7 +375,12 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
   cursor: pointer;
 }
 
+/* Gmail garde ses paramètres en clair, même en thème sombre : pareil pour nous. */
 .glx-settings {
+  --glx-accent: #0b57d0;
+  background: #fff !important;
+  color: #202124 !important;
+  color-scheme: light;
   box-sizing: border-box;
   overflow-y: auto;
   padding: 8px 16px 24px;

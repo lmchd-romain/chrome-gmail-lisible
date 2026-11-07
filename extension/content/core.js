@@ -181,7 +181,6 @@
 
   GL.themeInfo = () => {
     const start =
-      document.querySelector('.glx-settings') ||
       [...document.querySelectorAll('tr.zA, .h7, [role="main"]')].find((e) => GL.isVisible(e)) ||
       document.body;
     if (!start) return { dark: false, how: 'page vide' };

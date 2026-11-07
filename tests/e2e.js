@@ -709,13 +709,13 @@ async function main() {
     await p.close();
   });
 
-  await step('Personnalisation en thème sombre : texte clair lisible', async () => {
+  await step('Personnalisation en thème sombre : reste clair comme les paramètres de Gmail', async () => {
     const p = await openGmail('https://mail.google.com/mail/u/0/settings?dark=1#settings/general');
     await p.waitForSelector('.glx-settings-tab', { timeout: 3000 });
     await p.click('.glx-settings-tab');
-    await p.waitForFunction(() => document.documentElement.hasAttribute('data-glx-dark') && document.querySelector('.glx-settings'), null, { timeout: 3000 });
-    const c = await p.evaluate(() => getComputedStyle(document.querySelector('.glx-set-title')).color);
-    assert.equal(c, 'rgb(227, 227, 227)');
+    await p.waitForSelector('.glx-settings', { timeout: 3000 });
+    const c = await p.evaluate(() => [getComputedStyle(document.querySelector('.glx-set-title')).color, getComputedStyle(document.querySelector('.glx-settings')).backgroundColor]);
+    assert.deepEqual(c, ['rgb(32, 33, 36)', 'rgb(255, 255, 255)']);
     await shot(p, 'parametres-sombre');
     await p.close();
   });
