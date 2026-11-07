@@ -696,16 +696,34 @@ async function main() {
     await p.waitForSelector('.glx-settings-tab', { timeout: 3000 });
     await p.click('.glx-settings-tab');
     await p.waitForFunction(() => {
-      const s = document.querySelector('.glx-settings');
-      return s && s.style.maxHeight && s.scrollHeight > s.clientHeight;
+      const c = document.getElementById('content');
+      return document.querySelector('#content > .glx-settings') && c.scrollHeight > c.clientHeight;
     }, null, { timeout: 3000 });
     const seen = await p.evaluate(() => {
       const s = document.querySelector('.glx-settings');
-      s.scrollTop = s.scrollHeight;
+      const c = document.getElementById('content');
+      c.scrollTop = c.scrollHeight;
       const foot = s.querySelector('.glx-set-foot').getBoundingClientRect();
       return foot.bottom <= innerHeight + 1 && foot.top >= 0;
     });
     assert.ok(seen, 'bas du panneau visible après défilement');
+    const look = await p.evaluate(() => {
+      const s = document.querySelector('.glx-settings');
+      const c = document.getElementById('content');
+      const label = s.querySelector('td.glx-set-label');
+      const opts = s.querySelector('td.glx-set-options');
+      return {
+        inGmailScroller: s.parentElement === c && getComputedStyle(c).display !== 'none',
+        gmailHidden: [...c.children].filter((e) => e !== s).every((e) => getComputedStyle(e).display === 'none'),
+        ownScroll: s.style.maxHeight,
+        bg: getComputedStyle(s).backgroundColor,
+        indent: Math.round(label.getBoundingClientRect().left - c.getBoundingClientRect().left),
+        labelw: Math.round(opts.getBoundingClientRect().left - label.getBoundingClientRect().left),
+        line: getComputedStyle(label).borderBottomColor,
+        weight: getComputedStyle(label).fontWeight,
+      };
+    });
+    assert.deepEqual(look, { inGmailScroller: true, gmailHidden: true, ownScroll: '', bg: 'rgba(0, 0, 0, 0)', indent: 28, labelw: 306, line: 'rgb(225, 228, 232)', weight: '500' });
     await p.close();
   });
 

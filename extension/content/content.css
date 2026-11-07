@@ -452,6 +452,51 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
   pointer-events: none;
 }
 
+/* Dans la zone de défilement de Gmail : même fond, mêmes marges, colonnes et polices
+   que l'onglet de Gmail (valeurs relevées sur la page). */
+.glx-settings.glx-set-inner {
+  background: transparent !important;
+  color: var(--glx-set-color, #202124) !important;
+  overflow: visible;
+  padding: 4px var(--glx-set-indent, 16px) 24px;
+  font-family: var(--glx-set-family, inherit);
+  font-size: var(--glx-set-size, 14px);
+}
+
+.glx-set-inner .glx-set-table {
+  max-width: none;
+}
+
+/* !important : les styles de Gmail pour ses propres cellules ne doivent pas déborder sur les nôtres. */
+.glx-set-inner .glx-set-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+
+.glx-set-inner .glx-set-table td {
+  width: auto !important;
+  padding: var(--glx-set-padt, 14px) 0 var(--glx-set-padb, 14px) 0 !important;
+  border: 0 !important;
+  border-bottom: var(--glx-set-line, 1px solid rgba(100, 121, 143, 0.12)) !important;
+  font: inherit !important;
+  color: inherit !important;
+}
+
+.glx-set-inner .glx-set-table td.glx-set-label {
+  box-sizing: border-box !important;
+  width: var(--glx-set-labelw, 200px) !important;
+  padding-right: 24px !important;
+  font-weight: var(--glx-set-label-weight, 700) !important;
+}
+
+.glx-set-inner .glx-set-title {
+  font-weight: var(--glx-set-title-weight, 500);
+}
+
+.glx-set-inner .glx-set-desc {
+  font-size: var(--glx-set-desc-size, 13px);
+}
+
 /* ---------- Conversation inversée (ordre d'affichage seulement) ---------- */
 .glx-rv-msgs {
   display: flex !important;

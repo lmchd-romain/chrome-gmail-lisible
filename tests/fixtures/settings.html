@@ -33,6 +33,10 @@
     const c = document.getElementById('content');
     c.style.height = 'calc(100vh - 160px)';
     c.style.overflowY = 'auto';
+    c.style.background = '#f8f9fa';
+    const st = document.createElement('style');
+    st.textContent = '#content td { padding: 9px 0 11px 24px; border-bottom: 1px solid rgb(225, 228, 232); font: 500 14px Arial; } #content td:first-child { width: 280px; padding-left: 10px; }';
+    document.head.appendChild(st);
   }
   // ?dark=1 : thème sombre (Gmail met son texte en clair sur les blocs, pas partout).
   if (/dark=1/.test(location.search)) {

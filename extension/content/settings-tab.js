@@ -284,16 +284,95 @@
     }
   }
 
+  // ---------- Placement : dans la zone de défilement de Gmail ----------
+
+  let scroller = null; // la zone qui défile sous les onglets (celle de Gmail)
+  let layout = null; // marges, colonnes et polices relevées sur l'onglet de Gmail
+
+  const scrollsY = (e) => /^(auto|scroll|overlay)$/.test(getComputedStyle(e).overflowY);
+
+  /** La zone de défilement de Gmail qui contient le contenu de l'onglet. */
+  function findScroller(nodes) {
+    for (const n of nodes) {
+      for (const e of [n, ...n.querySelectorAll('div')]) {
+        if (scrollsY(e) && e.querySelector('input, select, table')) return e;
+      }
+    }
+    return null;
+  }
+
+  const px = (v) => parseFloat(v) || 0;
+
+  /** Relève la mise en page du contenu de Gmail (avant de le cacher). */
+  function measure(sc) {
+    for (const row of sc.querySelectorAll('tr')) {
+      const cells = [...row.children].filter((c) => c.tagName === 'TD' && GL.isVisible(c));
+      if (cells.length < 2 || !cells[0].textContent.trim()) continue;
+      const [a, b] = cells;
+      const ca = getComputedStyle(a);
+      const cb = getComputedStyle(b);
+      const cs = getComputedStyle(sc);
+      const r = sc.getBoundingClientRect();
+      const left = r.left + px(cs.borderLeftWidth) + px(cs.paddingLeft);
+      const textA = a.getBoundingClientRect().left + px(ca.paddingLeft);
+      const textB = b.getBoundingClientRect().left + px(cb.paddingLeft);
+      if (textB - textA < 40) continue;
+      const line = px(ca.borderBottomWidth) ? ca : getComputedStyle(row);
+      const strong = b.querySelector('b, strong, label');
+      return {
+        '--glx-set-indent': Math.max(0, Math.round(textA - left)) + 'px',
+        '--glx-set-labelw': Math.round(textB - textA) + 'px',
+        '--glx-set-padt': ca.paddingTop,
+        '--glx-set-padb': ca.paddingBottom,
+        '--glx-set-line': px(line.borderBottomWidth) ? line.borderBottomWidth + ' ' + line.borderBottomStyle + ' ' + line.borderBottomColor : '',
+        '--glx-set-family': ca.fontFamily,
+        '--glx-set-size': ca.fontSize,
+        '--glx-set-label-weight': ca.fontWeight,
+        '--glx-set-title-weight': strong ? getComputedStyle(strong).fontWeight : ca.fontWeight,
+        '--glx-set-color': ca.color,
+        '--glx-set-desc-size': cb.fontSize,
+      };
+    }
+    return null;
+  }
+
+  function applyLayout() {
+    for (const k in layout) {
+      if (!layout[k]) continue;
+      if (panel.style.getPropertyValue(k) !== layout[k]) panel.style.setProperty(k, layout[k]);
+    }
+  }
+
+  function hideOnly(nodes) {
+    for (const n of hiddenNodes) if (!nodes.includes(n)) n.classList.remove('glx-settings-hidden');
+    for (const n of nodes) if (!n.classList.contains('glx-settings-hidden')) n.classList.add('glx-settings-hidden');
+    hiddenNodes = nodes;
+  }
+
   function ensurePanel(tabs) {
     const content = findContent(tabs.root);
     if (!panel) panel = buildPanel();
-    const anchor = content ? content.anchor : tabs.root;
-    if (panel.previousElementSibling !== anchor) anchor.after(panel);
-    const nodes = content ? content.nodes : [];
-    for (const n of hiddenNodes) if (!nodes.includes(n)) n.classList.remove('glx-settings-hidden');
-    for (const n of nodes) if (!n.classList.contains('glx-settings-hidden')) n.classList.add('glx-settings-hidden');
-    if (!content && hiddenNodes.length === 0) GL.trace('paramètres', 'contenu de l’onglet de Gmail introuvable');
-    hiddenNodes = nodes;
+    if (!content && hiddenNodes.length === 0 && !panel.isConnected) GL.trace('paramètres', 'contenu de l’onglet de Gmail introuvable');
+
+    if (!scroller || !scroller.isConnected || !content || !content.nodes.some((n) => n.contains(scroller))) {
+      scroller = content ? findScroller(content.nodes) : null;
+    }
+    if (scroller) {
+      // Comme l'onglet de Gmail : même zone de défilement, mêmes marges et polices.
+      const gmail = [...scroller.children].filter((c) => c !== panel && !c.classList.contains('glx-own'));
+      if (gmail.some((c) => !c.classList.contains('glx-settings-hidden') && GL.isVisible(c))) {
+        layout = measure(scroller) || layout;
+        if (!panel.isConnected || panel.parentElement !== scroller) scroller.scrollTop = 0;
+      }
+      if (panel.parentElement !== scroller || scroller.firstElementChild !== panel) scroller.prepend(panel);
+      hideOnly(gmail);
+    } else {
+      const anchor = content ? content.anchor : tabs.root;
+      if (panel.previousElementSibling !== anchor) anchor.after(panel);
+      hideOnly(content ? content.nodes : []);
+    }
+    if (panel.classList.contains('glx-set-inner') !== !!scroller) panel.classList.toggle('glx-set-inner', !!scroller);
+    if (layout) applyLayout();
     fill(panel);
     fitPanel();
   }
@@ -319,6 +398,7 @@
 
   function closePanel() {
     if (panel && panel.isConnected) panel.remove();
+    scroller = null;
     for (const n of hiddenNodes) n.classList.remove('glx-settings-hidden');
     hiddenNodes = [];
   }
