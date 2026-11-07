@@ -139,20 +139,37 @@
     return docScroller ? innerHeight : Math.min(innerHeight, sc.getBoundingClientRect().bottom);
   }
 
+  function viewTop(sc) {
+    const docScroller = sc === document.scrollingElement || sc === document.documentElement;
+    return docScroller ? 0 : Math.max(0, sc.getBoundingClientRect().top);
+  }
+
+  /** Conversation inversée : la réponse est en haut, tout se fait dans l'autre sens. */
+  function reversed(list) {
+    return !!(GL.settings.reverseThread && GL.isReversed && GL.isReversed(list || GL.visibleThreadList()));
+  }
+
+  /** Vrai quand on est au bout de la conversation, du côté de la réponse. */
+  function atReplyEnd(sc, rev) {
+    return rev ? sc.scrollTop <= 4 : GL.atBottom(sc);
+  }
+
   /**
    * Vrai quand l'endroit où la réponse va revenir est visible à l'écran :
    * son ancien emplacement dans la conversation (ou, à défaut, la fin du dernier message).
    */
   function spotVisible(p, list, sc) {
-    const limit = viewBottom(sc) - DOCK_MARGIN;
+    const rev = reversed(list);
+    const limit = rev ? viewTop(sc) + DOCK_MARGIN : viewBottom(sc) - DOCK_MARGIN;
+    const seen = (r, edge) => (rev ? r[edge] >= limit : r[edge] <= limit);
     let el = p.anchor;
     for (let i = 0; el && el.isConnected && i < 4; i++, el = el.parentElement) {
       const r = el.getBoundingClientRect();
-      if (r.width || r.height) return r.top <= limit;
+      if (r.width || r.height) return seen(r, rev ? 'bottom' : 'top');
     }
     const items = list.querySelectorAll('[role="listitem"]');
     const last = items[items.length - 1];
-    return !!last && last.getBoundingClientRect().bottom <= limit;
+    return !!last && seen(last.getBoundingClientRect(), rev ? 'top' : 'bottom');
   }
 
   function visibleRatio(host, sc) {
@@ -287,10 +304,11 @@
       if (!popped.root.isConnected || !GL.isVisible(popped.root)) {
         popped = null; // envoyée, fermée ou supprimée par vous
       } else {
-        if (s.dockReplyAtBottom && now > cooldownUntil && now - popped.at > 1200 && direction > 0) {
-          const list = GL.visibleThreadList();
+        const list = GL.visibleThreadList();
+        const rev = reversed(list);
+        if (s.dockReplyAtBottom && now > cooldownUntil && now - popped.at > 1200 && direction === (rev ? -1 : 1)) {
           const sc = list && GL.findScroller(list);
-          if (list && sc && GL.threadKey(list) === popped.threadKey && (spotVisible(popped, list, sc) || GL.atBottom(sc))) {
+          if (list && sc && GL.threadKey(list) === popped.threadKey && (spotVisible(popped, list, sc) || atReplyEnd(sc, rev))) {
             dockBack(popped);
           }
         }
@@ -305,16 +323,19 @@
       return;
     }
     const sc = threadScroller(found.host);
+    const rev = reversed();
+    // « Avancée » vers la réponse : vers le bas normalement, vers le haut si la conversation est inversée.
+    const pos = rev ? -sc.scrollTop : sc.scrollTop;
     if (!inline || inline.card !== found.card || inline.host !== found.host) {
       const list = GL.visibleThreadList();
       inline = { host: found.host, card: found.card, threadKey: list ? GL.threadKey(list) : location.hash };
       userScrolled = false; // on attend que vous fassiez défiler la conversation
-      lowest = sc.scrollTop;
+      lowest = pos;
     }
-    lowest = Math.max(lowest, sc.scrollTop);
-    if (!userScrolled || direction >= 0 || now < cooldownUntil) return;
-    if (sc.scrollTop > lowest - CLIMB) return; // petit coup de molette vers le haut : on ne bouge pas
-    if (visibleRatio(found.host, sc) < POP_BELOW && !(isScrollable(sc) && GL.atBottom(sc))) popOut(inline);
+    lowest = Math.max(lowest, pos);
+    if (!userScrolled || (rev ? direction <= 0 : direction >= 0) || now < cooldownUntil) return;
+    if (pos > lowest - CLIMB) return; // petit coup de molette en s'éloignant : on ne bouge pas
+    if (visibleRatio(found.host, sc) < POP_BELOW && !(isScrollable(sc) && atReplyEnd(sc, rev))) popOut(inline);
   }
 
   function onScroll(e) {

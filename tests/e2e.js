@@ -347,6 +347,55 @@ async function main() {
   });
   await thread.close();
 
+  console.log('\nConversation inversée :');
+  await setOption('reverseThread', true);
+  const rev = await openGmail('https://mail.google.com/mail/u/0/thread?delayRender=1#inbox/FMfcgzTEST6');
+  const topOf = (sel) => rev.evaluate((q) => Math.round(document.querySelector(q).getBoundingClientRect().top), sel);
+
+  await step('dernier message en haut, boutons « Répondre » au-dessus, ordre réel inchangé', async () => {
+    await rev.waitForFunction(() => document.getElementById('list') && !document.querySelector('#list .kv, #list .kQ'), null, { timeout: 6000 });
+    await rev.waitForSelector('.glx-rv-msgs');
+    const [subject, buttons, newest, oldest] = [await topOf('h2.hP'), await topOf('.amn'), await topOf('[data-index="7"]'), await topOf('[data-index="0"]')];
+    assert.ok(subject < buttons && buttons < newest && newest < oldest, JSON.stringify({ subject, buttons, newest, oldest }));
+    const order = await rev.evaluate(() => [...document.querySelectorAll('#list [role=listitem]')].map((m) => m.dataset.index).join(''));
+    assert.equal(order, '01234567', 'les nœuds de Gmail ne bougent pas');
+    assert.equal(await rev.evaluate(() => document.getElementById('scroller').scrollTop), 0, 'on part du haut');
+    await shot(rev, 'conversation-inversee');
+  });
+
+  await step('réponse ouverte tout en haut, visible', async () => {
+    await rev.click('#reply-btn');
+    await rev.waitForSelector('.ip.adB #compose');
+    await rev.waitForTimeout(500);
+    const [reply, newestBody] = [await topOf('.ip.adB'), await topOf('[data-index="7"] .adn')];
+    assert.ok(reply < newestBody, 'réponse au-dessus du dernier message');
+    const ratio = await rev.evaluate(() => {
+      const r = document.querySelector('.ip.adB').getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= innerHeight;
+    });
+    assert.ok(ratio, 'réponse à l’écran');
+  });
+
+  await step('pop-up en descendant, retour en remontant', async () => {
+    await rev.waitForTimeout(1300);
+    await scrollTo(rev, 'bottom');
+    await rev.waitForFunction(popupShown, null, { timeout: 3000 });
+    await rev.click('#popup-editor');
+    await rev.keyboard.type('Réponse inversée');
+    await rev.waitForTimeout(1300);
+    await scrollTo(rev, 'top');
+    await rev.waitForFunction(() => window.__fake.restored === 1 && document.querySelector('.ip.adB #editor'), null, { timeout: 6000 });
+    assert.equal(await rev.evaluate(() => document.querySelector('.ip.adB #editor').textContent), 'Réponse inversée');
+    assert.ok((await topOf('.ip.adB')) < (await topOf('[data-index="7"] .adn')), 'revenue en haut');
+  });
+
+  await step('réglage désactivé : ordre normal tout de suite', async () => {
+    await setOption('reverseThread', false);
+    await rev.waitForFunction(() => !document.querySelector('[class*="glx-rv-"]'), null, { timeout: 2000 });
+    assert.ok((await topOf('[data-index="0"]')) < (await topOf('[data-index="7"]')));
+  });
+  await rev.close();
+
   console.log('\nConversation (brouillon replié après fermeture) :');
   const drafty = await openGmail('https://mail.google.com/mail/u/0/thread?draftItem=1&delayRender=1#inbox/FMfcgzTEST5');
   await step('pop-up : brouillon replié rouvert à sa place, puis nouveau tour', async () => {
@@ -559,6 +608,7 @@ async function main() {
       hideQuotedHistory: true,
       hideRepeatedSignatures: true,
       hideAttachmentPlaceholders: true,
+      reverseThread: false,
       floatingReply: true,
       dockReplyAtBottom: true,
       attachmentsOnTop: true,

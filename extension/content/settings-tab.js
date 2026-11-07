@@ -21,6 +21,7 @@
         { key: 'hideQuotedHistory', title: "Masquer l'historique déjà lu", desc: 'Dans les réponses, les anciens messages recopiés sont cachés s’ils sont déjà plus haut. Ceux que vous n’avez jamais reçus restent affichés.' },
         { key: 'hideRepeatedSignatures', title: 'Une seule signature par e-mail', desc: 'Quand la même signature est empilée plusieurs fois dans un e-mail.' },
         { key: 'hideAttachmentPlaceholders', title: 'Masquer les noms de fichiers « <plan.pdf> »', desc: 'Ajoutés par Apple Mail dans le texte des réponses.' },
+        { key: 'reverseThread', title: 'Conversation inversée', desc: 'Le dernier message en haut, le premier en bas. La réponse et les boutons « Répondre » passent tout en haut.' },
         { key: 'floatingReply', title: 'Réponse en fenêtre pop-up quand je remonte', desc: 'Votre réponse passe dans la fenêtre pop-up de Gmail pendant que vous relisez.' },
         { key: 'dockReplyAtBottom', parent: 'floatingReply', title: 'La remettre en place en redescendant', desc: 'Dès que sa place réapparaît à l’écran, elle revient dans la conversation (Gmail garde votre texte en brouillon).' },
       ],

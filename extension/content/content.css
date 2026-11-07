@@ -442,3 +442,30 @@ html[data-glx-hide-ph] br.glx-att-ph-br {
   opacity: 0.45;
   pointer-events: none;
 }
+
+/* ---------- Conversation inversée (ordre d'affichage seulement) ---------- */
+.glx-rv-msgs {
+  display: flex !important;
+  flex-direction: column-reverse !important;
+}
+.glx-rv-col,
+.glx-rv-flex {
+  display: flex !important;
+  flex-direction: column !important;
+}
+.glx-rv-col > .glx-rv-first {
+  order: -1;
+}
+/* Autour de la liste : en-tête (sujet…) · boutons « Répondre » · messages · reste. */
+.glx-rv-flex > * {
+  order: -3;
+}
+.glx-rv-flex > .glx-rv-main ~ * {
+  order: 0;
+}
+.glx-rv-flex > .glx-rv-main {
+  order: -1;
+}
+.glx-rv-flex > .glx-rv-top {
+  order: -2;
+}
